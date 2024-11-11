@@ -1,0 +1,1245 @@
+---
+title: "TP 1 - Muestreo"
+author: "Gomez Vargas Andrea, Iummato Luciana, Pesce Andrea Gisele"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: flatly
+    toc: yes
+    toc_float:
+      collapsed: true
+    df_print: kable
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: false
+header-includes:
+     \usepackage{longtable}
+     \renewcommand{\contentsname}{Contenido}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+# Paquetes de trabajo
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(survey)
+library(readxl)
+library(gt)
+library(sampling)
+library(VIM)
+library(binom)
+
+options(scipen = 999)
+```
+
+\pagebreak
+
+# Ejercicio I
+
+```{r message=FALSE, warning=FALSE}
+datos <- "
+Alumno X Y
+a 6 14.0
+b 9 20.0
+c 5 12.0
+d 4 10.0
+e 2 5.0
+f 7 12.0
+g 10 24.0
+h 4 5.0
+i 12 21.0
+j 5 9.0
+k 8 18.0
+l 12 20.0
+m 5 8.0
+n 9 15.0
+o 2 2.5
+p 6 11.0
+q 11 20.0
+r 8 15.0
+"
+
+# Convertimos los datos en un data.frame
+ejercicio_1 <- read.table(text = datos, header = TRUE)
+
+
+N= nrow(ejercicio_1)
+n=9
+
+#parámetros
+parametro_mediaX= sum(ejercicio_1$X)/N
+parametro_mediaY=sum(ejercicio_1$Y)/N
+parametro_razonX_Y= sum(ejercicio_1$X)/sum(ejercicio_1$Y)
+
+# Generar todas las combinaciones posibles
+muestras_posibles <- combn(N, n)
+
+# Ver la cantidad de combinaciones posibles
+cantidad_muestras <- ncol(muestras_posibles)
+cantidad_muestras
+
+#RESOLUCIÓN PUNTOS 2 Y 3 CON UNA MUESTRA SELECCIONADA
+# Seleccionamos ahora una muestra aleatoria simple con R de tamaño n
+s_mas <- sample(N,n, replace=FALSE)
+
+muestra <- ejercicio_1[s_mas,]
+
+#estimadores para esa muestra
+estimador_mediaX= sum(muestra$X)/N
+estimador_mediaY=sum(muestra$Y)/N
+estimador_razonX_Y= estimador_mediaX/estimador_mediaY
+
+#varianza de estimadores
+s_cuadradoX=var(muestra$X)
+s_cuadradoY=var(muestra$Y)
+
+# varianza para la estimacion de la muestra:
+# En el MAS 
+# Var(y_media) = (1-n/N)*S^2/n   
+Var_X_media = (1-n/N)*s_cuadradoX/n  
+Var_Y_media =(1-n/N)*s_cuadradoY/n  
+#no se como se hace la fórmula para una razón a partir de la muestra seleccionada
+  
+#coeficiente de variacion para la estimacion de la muestra:
+CVMAS_X <- 100*sqrt(Var_X_media)/estimador_mediaX
+
+CVMAS_X
+
+CVMAS_Y <- 100*sqrt(Var_Y_media)/estimador_mediaY
+
+CVMAS_Y
+#no lo hice para la razón porque no se hacer la varianza para la razón de esa muestra en particular
+#es una fórmula muy larga que creo que no vimos porque tiene covariación
+
+#CALCULO CON SURVEY PARA ESA MUESTRA EN PARTICULAR
+muestra$R <- muestra$X/muestra$Y
+muestra$pondera <- N/n
+
+muestra$fpc <- N  
+
+diseno <- svydesign(id= ~1,weights=~pondera, data=muestra, fpc=~fpc)
+diseno
+
+# Calcular las medias
+media_X <- svymean(~X, diseno)
+media_Y <- svymean(~Y, diseno)
+
+# Calcular la razón
+razon <- as.numeric(media_X / media_Y)
+
+# Mostrar la razón estimada
+razon
+
+
+
+#RESOLUCIÓN DE PUNTOS 2 Y 3 CON EL CALCULO DE TODAS LAS MUESTRAS POSIBLES (ESTO SI LO VIMOS EN CLASE)
+# Crear un vector para almacenar los valores de estimadores para cada muestra
+
+medias_X <- numeric(ncol(muestras_posibles))
+medias_Y <- numeric(ncol(muestras_posibles))
+razon <- numeric(ncol(muestras_posibles))
+
+# Calcular estimadores para cada muestra
+for (i in 1:ncol(muestras_posibles)) {
+  indices <- muestras_posibles[, i]
+  medias_X[i] <- mean(ejercicio_1$X[indices])
+  medias_Y[i] <- mean(ejercicio_1$Y[indices])
+  razon[i] <- medias_X[i] / medias_Y[i]
+}
+
+# Crear el data frame con las tres columnas
+muestras_posibles_estimadores <- data.frame(medias_X, medias_Y, razon)
+
+#esperanza del estimador
+esperanza_mediaX=mean(muestras_posibles_estimadores$medias_X) #insesgado
+esperanza_mediaY=mean(muestras_posibles_estimadores$medias_Y) #insesgado
+esperanza_razon=mean(muestras_posibles_estimadores$razon) #aproximado
+
+esperanza_mediaX
+esperanza_mediaY
+esperanza_razon
+
+# Calcular la varianza de los estimadores
+varianza_medias_X <- var(muestras_posibles_estimadores$medias_X)
+varianza_medias_Y <- var(muestras_posibles_estimadores$medias_Y)
+varianza_razon <- var(muestras_posibles_estimadores$razon)
+
+varianza_medias_X
+varianza_medias_Y
+varianza_razon
+
+# Calcular la varianza de los estimadores
+CVestimador_X <- 100*sqrt(varianza_medias_X)/esperanza_mediaX
+CVestimador_y <- 100*sqrt(varianza_medias_Y)/esperanza_mediaY
+CVestimador_r <- 100*sqrt(varianza_razon)/esperanza_razon
+
+CVestimador_X
+CVestimador_y
+CVestimador_r
+
+
+#SELECCIÓN DE 10000 MUESTRAS 
+
+# Creo una funcion que seleccione una muestra de tamanio x
+# y estime total de poblacion
+estimo_diezmil <- function() {
+  muestras <- ejercicio_1[sample(nrow(ejercicio_1), 9, replace = FALSE), ]  # Tamaño de muestra de 9
+  estim_X <- mean(muestras$X)  # Calcular la media de X
+  estim_Y <- mean(muestras$Y)  # Calcular la media de Y
+  a <- c(estim_X, estim_Y)  # Crear un vector con las estimaciones
+  return(a)  # Devolver el vector
+}
+
+# Crear una lista para almacenar las estimaciones
+lista_estim <- lapply(1:10000, function(x) estimo_diezmil())
+
+# Convertir la lista en un data frame
+df_estimdiezmil <- data.frame(matrix(unlist(lista_estim), 
+                                     nrow = length(lista_estim), byrow = TRUE))
+
+# Asignar nombres a las columnas
+colnames(df_estimdiezmil) <- c("media_X", "media_Y")
+df_estimdiezmil$razon <- df_estimdiezmil$media_X/df_estimdiezmil$media_Y
+
+
+# Calcular la varianza de los estimadores
+var_medias_X <- var(df_estimdiezmil$media_X)
+var_medias_Y <- var(df_estimdiezmil$media_Y)
+var_razon <- var(df_estimdiezmil$razon)
+
+var_medias_X
+var_medias_Y
+var_razon
+
+# Calcular la varianza de los estimadores
+CV_X <- 100*sqrt(var_medias_X)/mean(df_estimdiezmil$media_X)
+CV_y <- 100*sqrt(var_medias_Y)/mean(df_estimdiezmil$media_Y)
+CV_r <- 100*sqrt(var_razon)/mean(df_estimdiezmil$razon)
+
+CV_X
+CV_y
+CV_r
+
+
+# Grafico la distribucion de las estimaciones
+p <-ggplot(df_estimdiezmil, aes(x=razon)) + 
+  geom_histogram(color="black", fill="white")
+p
+```
+
+
+# Ejercicio II
+
+```{r}
+df_tabla <- read_excel("tabla_muestras_posibles.xlsx")
+
+#TODAS LAS MUESTRAS POSIBLES
+df_muestras <- data.frame(matrix(unlist(combn(df_tabla$Y,10, simplify = FALSE)),
+                                 ncol=10, byrow=TRUE))
+
+#1 y 2. MEDIA, MEDIANA, MEDIA TRUNCADA DE TODAS LAS MUESTRAS POSIBLES
+
+df_muestras[, 1:10] <- t(apply(df_muestras[, 1:10], 1, sort))
+
+media <- apply(df_muestras[,1:10],1,mean)
+mediana <- apply(df_muestras[,1:10],1,median)
+media_t <- apply(df_muestras[,2:9],1,mean)
+
+df_muestras$Media <- media
+df_muestras$Mediana <- mediana
+df_muestras$MediaTrunc <- media_t
+
+
+#verificación de que la media es un estimador insesgado de la media poblacional
+
+media_poblacional=mean(df_tabla$Y)
+mediana_poblacional=median(df_tabla$Y)
+mediaTrunc_poblacional=mean(df_tabla$Y, trim = 0.1)
+
+media_poblacional
+mediana_poblacional
+mediaTrunc_poblacional
+
+media_muestras=mean(df_muestras$Media)
+mediana_muestras=mean(df_muestras$Mediana)
+mediaTrunc_muestras=mean(df_muestras$MediaTrunc)
+
+media_muestras
+mediana_muestras
+mediaTrunc_muestras
+
+#GRÁFICO DE LAS 3 ESTIMACIONES
+
+#media
+p <- ggplot(df_muestras, aes(x=Media)) +
+  geom_histogram(bins=30, color="black", fill="white") +
+  coord_cartesian(xlim = c(-10, 100))
+
+p <- p+ geom_vline(aes(xintercept=mean(Media)),
+                   color="blue", linetype="dashed", linewidth=1)
+p
+
+#mediana
+p_median <- ggplot(df_muestras, aes(x=Mediana)) +
+  geom_histogram(bins=30, color="black", fill="white") +
+  coord_cartesian(xlim = c(-10, 100))
+
+p_median <- p_median+ geom_vline(aes(xintercept=mean(Mediana)),
+                   color="blue", linetype="dashed", linewidth=1)
+p_median
+
+#media truncada
+p_mediaT <- ggplot(df_muestras, aes(x=MediaTrunc)) +
+  geom_histogram(bins=30, color="black", fill="white") +
+  coord_cartesian(xlim = c(-10, 100))
+
+p_mediaT <- p_mediaT+ geom_vline(aes(xintercept=mean(MediaTrunc)),
+                   color="blue", linetype="dashed", linewidth=1)
+p_mediaT
+
+#cv y EMC de los 3 estimadores
+
+cv_media <- sd(df_muestras$Media) / mean(df_muestras$Media)*100
+cv_mediana <- sd(df_muestras$Mediana) / mean(df_muestras$Mediana)*100
+cv_mediaT <- sd(df_muestras$MediaTrunc) / mean(df_muestras$MediaTrunc)*100
+
+var_media<-var(df_muestras$Media)
+var_mediana<-var(df_muestras$Mediana)
+var_mediaT<-var(df_muestras$MediaTrunc)
+
+sesgo_media<-media_poblacional - media_muestras
+sesgo_mediana<-mediana_poblacional- mediana_muestras
+sesgo_mediaT<-mediaTrunc_poblacional - mediaTrunc_muestras
+
+emc_media <- var_media + sesgo_media^2
+emc_mediana <- var_mediana + sesgo_mediana^2
+emc_mediaT <- var_mediaT + sesgo_mediaT^2
+
+resultados <- data.frame(
+  Estimador = c("Media", "Mediana", "Media Truncada"),
+  CV = c(cv_media, cv_mediana, cv_mediaT),
+  EMC = c(emc_media, emc_mediana, emc_mediaT)
+)
+
+gt(resultados)
+
+#parece que el mejor estimador es la media truncada porque tiene menos varianza
+
+
+```
+
+
+# Ejercicio III
+
+```{r}
+# Lectura de las tablas
+radios_sexo <- read_excel("cen2010_radios_sexo.xlsx")
+radios_tipo <- read_excel("cen2010_radios_tipo.xlsx")
+radios_bienes <- read_excel("cen2010_radios_bienes.xlsx")
+
+# Juntamos los archivos para unificarlos en un unico dataframe
+radios_2010 = merge(radios_sexo, radios_bienes, by = "Codigo")
+radios_2010 = merge(radios_2010, radios_tipo, by = "Codigo")
+
+# Generamos nuevas variables en el dataframe que utilizaremos mas adelante
+
+# Poblacion total en cada radio
+radios_2010$Pob_radio <- radios_2010$Varon + radios_2010$Mujer 
+
+# Hogares rancho- casilla
+radios_2010$Rancho_casilla <- radios_2010$Rancho + radios_2010$Casilla 
+
+# Cantidad de viviendas en cada radio
+radios_2010$Viv_radio <-  radios_2010$Casa + 
+  radios_2010$Rancho + 
+  radios_2010$Casilla + 
+  radios_2010$Departamento + 
+  radios_2010$Inquilinato + 
+  radios_2010$Hotel_pension
+
+
+
+# Total de hogares
+radios_2010$Hogares <- radios_2010$HeladeraSi + radios_2010$HeladeraNo 
+# Extraemos el codigo de provincia
+radios_2010$prov <- floor(radios_2010$Codigo/10000000)
+
+
+# Creamos etiqueta para las provincia2
+radios_2010 <- radios_2010 %>%
+  mutate(Provincia = case_when(prov == 2 ~ 'CABA', prov == 6 ~ 'BsAs',
+                               prov == 10 ~ 'Catamarca', prov == 14 ~ 'Cordoba',
+                               prov == 18 ~ 'Corrientes', prov == 22 ~ 'Chaco',
+                               prov == 26 ~ 'Chubut', prov == 30 ~ 'Entre Rios',
+                               prov == 34 ~ 'Formosa', prov == 38 ~ 'Jujuy',
+                               prov == 42 ~ 'La Pampa', prov == 46 ~ 'La Rioja',
+                               prov == 50 ~ 'Mendoza', prov == 54 ~ 'Misiones',
+                               prov == 58 ~ 'Neuquen', prov == 62 ~ 'Rio Negro',
+                               prov == 66 ~ 'Salta', prov == 70 ~ 'San Juan',
+                               prov == 74 ~ 'San Luis', prov == 78 ~ 'Santa Cruz',
+                               prov == 82 ~ 'Santa Fe', prov == 86 ~ 'Santiago',
+                               prov == 90 ~ 'Tucuman', prov == 94 ~ 'TdFuego'))
+
+
+# Eliminamos los radios sin viviendas
+radios_2010 <- radios_2010[radios_2010$Viv_radio>0,]
+
+N=nrow(radios_2010)
+n=240
+
+#parámetros
+
+poblacion<- sum(radios_2010$Pob_radio)
+hogares_casa<-sum(radios_2010$Casa)
+hogares_rancho<-sum(radios_2010$Rancho)+sum(radios_2010$Casilla)
+prop_rancho<-(sum(radios_2010$Rancho)+sum(radios_2010$Casilla))/sum(radios_2010$Viv_radio)
+
+#CV
+# Calculamos la varianza para la estimacion del total:
+# En el MAS 
+# Var(y_media) = (1-n/N)*S^2/n  
+# Var(N*y_media) = N^2*(1-n/N)*S^2/n
+P=prop_rancho
+Q=1-prop_rancho
+P+Q
+
+S2_pob <- var(radios_2010$Pob_radio)
+S2_casa <- var(radios_2010$Casa)
+S2_rancho <- var(radios_2010$Rancho + radios_2010$Casilla)
+S2_prop <- P*Q
+
+VarMAS_MediaPob <- (1-n/N)*S2_pob/n
+VarMAS_MediaCasa <- (1-n/N)*S2_casa/n
+VarMAS_MediaRancho <- (1-n/N)*S2_rancho/n
+
+
+VarMAS_pob <- N^2*VarMAS_MediaPob   #Recordar: Var(k*X)= k^2*Var(X)
+VarMAS_casa <- N^2*VarMAS_MediaCasa 
+VarMAS_rancho <- N^2*VarMAS_MediaRancho 
+
+
+# Calculamos el coeficiente de variacion
+CVMAS_Pob <- 100*sqrt(VarMAS_pob)/poblacion
+CVMAS_Casa <- 100*sqrt(VarMAS_casa)/hogares_casa
+CVMAS_Rancho <- 100*sqrt(VarMAS_rancho)/hogares_rancho
+
+ds_prop<-sqrt(P*Q)
+CVMAS_Prop <- 100 *(ds_prop/prop_rancho) #revisar
+
+CVMAS_Pob
+CVMAS_Casa
+CVMAS_Rancho
+CVMAS_Prop #revisar
+
+#el cv de la estimación de rancho o casilla es grande porque el N del universo es menor que en el caso de la población general y los hogares tipo casa
+#el cv de la proporción de rancho o casilla es grande porque el valor de P es muy pequeño
+
+#n=240*43
+
+#para que el cv de la estimación de la población sea aproximadamente 2% n debe ser 1000
+#para que el cv de la estimación de hogares tipo rancho o casilla sea aproximadamente 2% n debe ser 10000
+
+# Seleccionamos ahora una muestra aleatoria simple con R
+s_mas <- sample(N,n, replace=FALSE)
+
+muestra_radios <- radios_2010[s_mas,]
+
+#estimaciones muestrales N*y_media
+
+muestra_poblac<-N*mean(muestra_radios$Pob_radio)
+muestra_casa<-N*mean(muestra_radios$Casa)
+muestra_rancho<-N*mean(muestra_radios$Rancho+muestra_radios$Casilla)
+muestra_prop<-(sum(muestra_radios$Rancho)+sum(muestra_radios$Casilla))/sum(muestra_radios$Viv_radio)
+
+# Agregamos al data frame el factor de expansion
+# (recordar que seleccione una muestra aleatoria simple de radios)
+muestra_radios$pondera <- N/n
+
+
+# Cantidad total de unidades en el marco de muestreo
+# lo necesitare luego para survey
+muestra_radios$fpc <- N  
+
+#junto rancho y casilla
+muestra_radios$rancho_casilla <- muestra_radios$Rancho + muestra_radios$Casilla
+
+# El objeto 'diseno' contiene toda la informacion que sera empleada 
+# para realizar las estimaciones.
+
+
+diseno <- svydesign(id= ~1,weights=~pondera, data=muestra_radios, fpc=~fpc)
+diseno
+# (como es una muestra aleatoria simple ponemos fpc)
+
+# Por ejemplo, si queremos extraer los pesos de un diseno podemos utilizar
+pesos <- weights(diseno)
+
+
+# total población
+EstTotalPob <- survey :: svytotal(~Pob_radio, diseno, deff=TRUE, cv=TRUE, ci=TRUE)
+EstTotalPob
+
+# Puedo ahora extraer diferentes valores:
+survey :: cv(EstTotalPob)      # -> coeficiente de variacion
+deff(EstTotalPob)    # -> efecto de diseno
+SE(EstTotalPob)      # -> desvio estandar
+confint(EstTotalPob) # -> intervalor de confianza (por defecto 95%)
+cv(EstTotalPob)
+
+# O pasar los resultados a un data frame
+df_EstTotalPob <- as.data.frame(EstTotalPob)
+
+# Quiero cambiar el nombre de las columnas
+colnames(df_EstTotalPob) <- c("Estimacion", "SE", "deff")
+
+# Calculemos ahora el intervalo de confianza con un 90% de confianza
+# (suponemos que el estimador es aprox normal)
+df_EstTotalPob$Li <- df_EstTotalPob$Estimacion-1.64*df_EstTotalPob$SE  
+df_EstTotalPob$Ls <- df_EstTotalPob$Estimacion+1.64*df_EstTotalPob$SE  
+
+
+# Ahora calculo el CV del estimador
+df_EstTotalPob$CV <-  100*df_EstTotalPob$SE/df_EstTotalPob$Estimacion
+
+
+# total casas
+EstTotalcasa <- survey :: svytotal(~Casa, diseno, deff=TRUE, cv=TRUE, ci=TRUE)
+EstTotalcasa
+
+# Puedo ahora extraer diferentes valores:
+survey :: cv(EstTotalcasa)      # -> coeficiente de variacion
+deff(EstTotalcasa)    # -> efecto de diseno
+SE(EstTotalcasa)      # -> desvio estandar
+confint(EstTotalcasa) # -> intervalor de confianza (por defecto 95%)
+cv(EstTotalcasa)
+
+# O pasar los resultados a un data frame
+df_EstTotalcasa <- as.data.frame(EstTotalcasa)
+
+# Quiero cambiar el nombre de las columnas
+colnames(df_EstTotalcasa) <- c("Estimacion", "SE", "deff")
+
+# Calculemos ahora el intervalo de confianza con un 90% de confianza
+# (suponemos que el estimador es aprox normal)
+df_EstTotalcasa$Li <- df_EstTotalcasa$Estimacion-1.64*df_EstTotalPob$SE  
+df_EstTotalcasa$Ls <- df_EstTotalcasa$Estimacion+1.64*df_EstTotalPob$SE  
+
+
+# Ahora calculo el CV del estimador
+df_EstTotalcasa$CV <-  100*df_EstTotalcasa$SE/df_EstTotalPob$Estimacion
+
+
+
+# total rancho y casilla
+EstTotalrancho <- survey :: svytotal(~rancho_casilla, diseno, deff=TRUE, cv=TRUE, ci=TRUE)
+EstTotalrancho
+
+# Puedo ahora extraer diferentes valores:
+survey::cv(EstTotalrancho)      # -> coeficiente de variacion
+deff(EstTotalrancho)    # -> efecto de diseno
+SE(EstTotalrancho)      # -> desvio estandar
+confint(EstTotalrancho) # -> intervalor de confianza (por defecto 95%)
+cv(EstTotalrancho)
+
+# O pasar los resultados a un data frame
+df_EstTotalrancho <- as.data.frame(EstTotalrancho)
+
+# Quiero cambiar el nombre de las columnas
+colnames(df_EstTotalrancho) <- c("Estimacion", "SE", "deff")
+
+# Calculemos ahora el intervalo de confianza con un 90% de confianza
+# (suponemos que el estimador es aprox normal)
+df_EstTotalrancho$Li <- df_EstTotalrancho$Estimacion-1.64*df_EstTotalPob$SE  
+df_EstTotalrancho$Ls <- df_EstTotalrancho$Estimacion+1.64*df_EstTotalPob$SE  
+
+
+# Ahora calculo el CV del estimador
+df_EstTotalrancho$CV <-  100*df_EstTotalrancho$SE/df_EstTotalrancho$Estimacion
+
+
+# proporcion
+Estproporcion <- survey::svyratio(~rancho_casilla,~Viv_radio,  design = diseno, deff = TRUE, cv = TRUE, ci = TRUE)
+
+Estproporcion
+
+# Puedo ahora extraer diferentes valores:
+estimador <- coef(Estproporcion)  # Estimador de la proporción
+error_estandar <- SE(Estproporcion)  # Error estándar
+cv_ <- cv(Estproporcion)  # Coeficiente de variación
+intervalo_confianza <- confint(Estproporcion)  # Intervalo de confianza
+
+#IC 90%
+
+IC90Li <- estimador-1.64*error_estandar
+IC90Ls <- estimador+1.64*error_estandar
+
+
+# Ahora calculo el CV del estimador
+CVe <-  100*error_estandar/estimador
+CVe
+```
+
+
+# Ejercicio IV
+
+Estimación, encuestando en su totalidad una Muestra Sistemática de n=240 radios censales para Total de población, Total de hogares que habitan en viviendas tipo Casa y Total de hogares que habitan en viviendas rancho/ casilla
+
+### Estimación para Población
+
+```{r Armo Tabla E4}
+
+#Creo una nueva tabla para este ejercicio con la base que ya armamos en el Ejercicio 3.
+
+radios_2010E4 <- radios_2010
+
+N <- nrow(radios_2010E4)
+
+# Tamano de la muestra
+n <- 240
+
+# Intervalo de selección
+I <- floor(N/n)
+print(I)
+
+# Parametro poblacional
+ParametroPobE4 <- sum(radios_2010E4$Pob_radio)
+print(ParametroPobE4)
+
+# Ordenamiento del marco de muestreo
+radios_2010E4 <- radios_2010E4[order(radios_2010E4$Codigo),]
+radios_2010E4$aleatorio <- runif(nrow(radios_2010E4),0,1)
+radios_2010E4 <- radios_2010E4[order(radios_2010E4$Viv_radio),]
+radios_2010E4 <- radios_2010E4[order(radios_2010E4$Pob_radio),]
+radios_2010E4 <- radios_2010E4[order(radios_2010E4$aleatorio),]
+
+```
+Definiremos el arranque aleatorio, generando un número aleatorio entre 1 y el intervalo de selección I, que en nuestro caso es 218. 
+
+```{r Arranque aleatorio}
+
+#aa <- sample(1:I, 1)
+aa = 75
+print(aa)
+
+```
+
+El resultado de aa es 75. Le pondremos un # a la función dado que cada vez que se ejecuta cambiará el valor de aa
+
+```{r Seleccion sistemática}
+
+#Seleccionaremos una muestra sistemática de los datos en radios_2010E4 utilizando el arranque aleatorio aa = 75
+
+
+s = radios_2010E4[ seq(aa,N,I), ]
+
+``` 
+
+
+Calcularemos una estimación del total poblacional y su error relativo para evaluar la precisión de la muestra sistemática.
+
+
+```{r Precisión}
+
+#Primero realizaremos la estimación del total poblacional usando el método de Horvitz-Thompson, un estimador insesgado en muestreo sistemático.
+
+estim <- I*sum(s$Pob_radio)
+print(estim)
+
+error_rel <- 100*(ParametroPobE4 - estim) /ParametroPobE4
+print(error_rel)
+
+```
+
+La estimación de la población usando una muestra de 240 radios censales es muy cercana al parámetro poblacional ParametroPobE4 (40115211), lo cual sugiere que la muestra debería ser buena.El error relativo es muy bajo, por lo que la muestra puede proveer una estimación precisa.
+
+
+### Estimación para viviendas tipo Casa
+
+```{r Casa}
+
+#Parámetro poblacional para viviendas tipo Casa:
+ParametroCasaE4 <- sum(radios_2010E4$Casa)  
+print(ParametroCasaE4)
+
+#Estimación para la muestra:
+estimCasaE4 <- I * sum(s$Casa)  
+print(estimCasaE4)
+
+#Error relativo
+error_relCasaE4 <- 100 * (ParametroCasaE4 - estimCasaE4) / ParametroCasaE4
+print(error_relCasaE4)
+
+```
+
+El valor de la estimación calculada a partir de la muestra se aproxima bastante al valor real de la población, por lo cual el muestreo es representativo y el tamaño de la muestra se puede interpretar como adecuado. El error relativo es muy bajo, por lo que la estimación es bastante cercana al parámetro poblacional real.
+
+
+### Estimación para viviendas tipo Rancho o Casilla
+
+
+```{r RanchoCasilla}
+
+# Crear la columna Rancho_Casilla
+radios_2010E4$Rancho_Casilla <- radios_2010E4$Rancho + radios_2010E4$Casilla
+
+# Seleccionar la muestra sistemática
+s = radios_2010E4[seq(aa, N, I), ]
+
+# Parámetro poblacional
+ParametroRanchoCasillaE4 <- sum(radios_2010E4$Rancho_Casilla)
+print(ParametroRanchoCasillaE4)
+
+# Estimación para la muestra
+estimRanchoCasillaE4 <- I * sum(s$Rancho_Casilla)
+print(estimRanchoCasillaE4)
+
+# Error relativo
+error_relRanchoCasillaE4 <- 100 * (ParametroRanchoCasillaE4 - estimRanchoCasillaE4) / ParametroRanchoCasillaE4
+print(error_relRanchoCasillaE4)
+
+```
+
+
+La estimación de 426408 es cercano al parametro 461725, lo cual indica que el muestreo sistemático es preciso para estimar el total de viviendas tipo rancho o casilla.El error relativo es muy bajo siendo un buen indicador de precisión en el muestreo
+
+
+## Compararemos dos estrategias utilizando como estimador la media muestral
+
+### 1. Muestreo sistemático, ordenando la tabla por Provincia-Total de viviendas del radio
+
+Primero indicamos aquí nuevamente los parámetros que obtuvimos en el punto anterior:
+
+```{r parametros E4}
+
+print(ParametroPobE4)
+print(ParametroCasaE4)
+print(ParametroRanchoCasillaE4)
+
+```
+
+Comenzamos con la estrategia 1 que implica Orden por "Provincia-Total de viviendas del radio"
+
+```{r Estrategia1 E4}
+
+# Ordenar por Provincia y Total de viviendas del radio
+Estrategia1E4 <- radios_2010E4[order(radios_2010E4$Provincia, radios_2010E4$Viv_radio), ]
+
+# Tamaño de la muestra y cálculo del intervalo
+n <- 240
+N <- nrow(Estrategia1E4)
+I <- floor(N / n)
+print(I)
+
+# Arranque aleatorio
+# aa <- sample(1:I, 1)
+# La función arroja un aa de 191. Le colocamos # dado que sino arrojará un aa diferente en cada ejecución
+aa = 191
+print(aa)
+
+# Selección sistemática
+muestraE1 <- Estrategia1E4[seq(aa, N, by = I), ]
+
+# Estimaciones para la muestra en Estrategia 1
+estimPobE1 <- I * mean(muestraE1$Pob_radio)
+estimCasaE1 <- I * mean(muestraE1$Casa)
+estimRancho_CasillaE1 <- I * mean(muestraE1$Rancho + muestraE1$Casilla)
+
+print(estimPobE1)
+print(estimCasaE1)
+print(estimRancho_CasillaE1)
+
+```
+Ahora revisamos el error relativo para Estrategia 1
+
+```{r error relativo Estrategia1 E4}
+error_relPobE1 <- 100 * abs(ParametroPobE4 - estimPobE1) / ParametroPobE4
+error_relCasaE1 <- 100 * abs(ParametroCasaE4 - estimCasaE1) / ParametroCasaE4
+error_relRancho_CasillaE1 <- 100 * abs(ParametroRanchoCasillaE4 - estimRancho_CasillaE1) / ParametroRanchoCasillaE4
+
+print(error_relPobE1)
+print(error_relCasaE1)
+print(error_relRancho_CasillaE1)
+```
+Los errores relativos son muy altos (cercanos al 100%), lo que indica que la estimación está muy alejada del valor poblacional, pudiendo interpretar que el ordenamiento esté afectando la representatividad.
+
+
+### 2. Muestreo sistemático, ordenando la tabla por un número pseudo aleatorio
+
+```{r Estrategia2 E4}
+
+# Ordenar por el número aleatorio
+Estrategia2E4 <- radios_2010E4 [order(radios_2010E4$aleatorio), ]
+
+# Selección sistemática
+muestraE2 <- Estrategia2E4 [seq(aa, N, by = I), ]
+
+# Estimaciones para la muestra en Estrategia 2
+estimPobE2 <- I * mean(muestraE2$Pob_radio)
+estimCasaE2 <- I * mean(muestraE2$Casa)
+estimRancho_CasillaE2 <- I * mean(muestraE2$Rancho + muestraE2$Casilla)
+
+print(estimPobE2)
+print(estimCasaE2)
+print(estimRancho_CasillaE2)
+```
+
+
+```{r error relativo Estrategia2 E4}
+
+error_relPobE2 <- 100 * abs(ParametroPobE4 - estimPobE2) / ParametroPobE4
+error_relCasaE2 <- 100 * abs(ParametroCasaE4 - estimCasaE2) / ParametroCasaE4
+error_relRancho_CasillaE2 <- 100 * abs(ParametroRanchoCasillaE4 - estimRancho_CasillaE2) / ParametroRanchoCasillaE4
+
+print(error_relPobE2)
+print(error_relCasaE2)
+print(error_relRancho_CasillaE2)
+
+```
+
+Al parecer ninguna de las estrategias estaría dando resultados dado que los errores relativos son muy altos. La estrategia de muestreo sistemático puede que no sea la más adecuada para este caso.
+
+
+## Hallar CV, deff, sesgo relativo y EMC de cada estrategia, seleccionando todas las muestas posibles
+
+Para evaluar cada estrategia y medir su eficiencia y precisión, podemos calcular el coeficiente de variación (CV), el efecto del diseño (deff), el sesgo relativo y el error medio cuadrático (EMC). 
+
+Para ello, calcularemos las I estimaciones posibles, una para cada arranque aleatorio. Definiremos una funcion que seleccione una muestra sistematica, con el arranque aleatorio como variable independiente y devuelva la estimacion
+
+Primero, definimos las funciones para seleccionar la muestra sistemática y para calcular los estimadores necesarios para todas las posibles muestras.
+
+### Estrategia 1
+
+```{r funciones Estrategia 1}
+
+# Tamaño de la población y de la muestra
+N <- nrow(Estrategia1E4)  # total de radios censales
+n <- 240                   # tamaño de la muestra
+I <- floor(N / n)          # intervalo de selección
+
+# Valor verdadero del parámetro poblacional 
+parametro_poblacionalEst1 <- sum(Estrategia1E4$Pob_radio)
+
+# Definimos la función de estimación sistemática
+estim_sistematico <- function(aa) {
+  s = Estrategia1E4[seq(aa, N, I), ]
+  estim <- I * sum(s$Pob_radio)
+  return(c(estim))
+}
+
+estimacionEst1 <- estim_sistematico(2)
+
+print(parametro_poblacionalEst1)
+print(estimacionEst1)
+
+```
+
+
+
+```{r estimaciones posibles estrategia 1}
+
+# Calculamos las I estimaciones posibles
+
+lista_arranques <- 1:I
+
+lista_estimaciones <- lapply(lista_arranques, estim_sistematico)
+
+df_estim <- data.frame(matrix(unlist(lista_estimaciones),ncol=1, byrow=TRUE ) )
+
+
+colnames(df_estim) <- c("Estimacion")
+
+EsperanzaE4   <-  mean(df_estim$Estimacion)
+SesgoE4    <- EsperanzaE4 - parametro_poblacionalEst1
+VarianzaE4 <-  var(df_estim$Estimacion)*(N-1)/N
+DSE4       <- sqrt(VarianzaE4)
+CVestimsE4        <- 100*DSE4/parametro_poblacionalEst1
+
+
+print(EsperanzaE4)
+print(SesgoE4)
+print(VarianzaE4)
+print(DSE4)
+print(CVestimsE4)
+
+
+```
+
+- La esperanza, es decir, la estimación promedio de la población utilizando todas las muestras posible toma el mismo valor que el parametro poblacional, lo cual sugiere que el estimador es insesgado para esta estrategia. 
+
+- El sesgo, que es la diferencia entre la esperanza de la estimación y el valor verdadero, da cero, justo lo que se espera dado que el estimador es insesgado. El valor cero confirma que no hay desviación entre la media de las estimaciones y el valor poblacional.
+
+- La varianza es la medida de la dispersión de las estimaciones.
+
+- La desviación Estándar indica la variabilidad de las estimaciones alrededor de la media.
+
+- Finalmente el Coeficiente de Variación (CV) ayuda a comparar la precisión de la estimación en relación con el valor poblacional real, y el valor que toma (4,05) es bajo CV bajo (menor a 10%) por lo cual indica una buena precisión.
+
+### Estrategia 2
+
+
+```{r funciones Estrategia 2}
+
+# Tamaño de la población y de la muestra
+N <- nrow(Estrategia2E4)  # total de radios censales
+n <- 240                   # tamaño de la muestra
+I <- floor(N / n)          # intervalo de selección
+
+# Valor verdadero del parámetro poblacional 
+parametro_poblacionalEst2 <- sum(Estrategia2E4$Pob_radio)
+
+# Definimos la función de estimación sistemática
+estim_sistematico2 <- function(aa) {
+  s = Estrategia2E4[seq(aa, N, I), ]
+  estim2 <- I * sum(s$Pob_radio)
+  return(c(estim2))
+}
+
+estimacionEst2 <- estim_sistematico2(2)
+
+print(parametro_poblacionalEst2)
+print(estimacionEst2)
+
+```
+
+```{r estimaciones posibles estrategia 2}
+
+# Calculamos las I estimaciones posibles
+
+lista_arranques2 <- 1:I
+
+lista_estimaciones2 <- lapply(lista_arranques2, estim_sistematico2)
+
+df_estim2 <- data.frame(matrix(unlist(lista_estimaciones2),ncol=1, byrow=TRUE ) )
+
+
+colnames(df_estim2) <- c("Estimacion2")
+
+EsperanzaE4.2   <-  mean(df_estim2$Estimacion2)
+SesgoE4.2    <- EsperanzaE4.2 - parametro_poblacionalEst2
+VarianzaE4.2 <-  var(df_estim2$Estimacion2)*(N-1)/N
+DSE4.2       <- sqrt(VarianzaE4.2)
+CVestimsE4.2        <- 100*DSE4.2/parametro_poblacionalEst2
+
+
+EsperanzaE4.2
+SesgoE4.2
+VarianzaE4.2
+DSE4.2
+CVestimsE4.2
+
+
+```
+
+
+### Comparación de estrategias
+
+```{r comparacion estrategias E4}
+
+tabla_comparacionEstrategiasE4 <- data.frame(
+  Estrategia = c("Estrategia 1", "Estrategia 2"),
+  Esperanza = c(EsperanzaE4, EsperanzaE4.2),
+  Sesgo = c(SesgoE4, SesgoE4.2),
+  Varianza = c(VarianzaE4, VarianzaE4.2),
+  Desviacion_Estandar = c(DSE4, DSE4.2),
+  Coeficiente_Variacion = c(CVestimsE4, CVestimsE4.2)
+)
+
+# Mostrar la tabla de comparación
+gt(tabla_comparacionEstrategiasE4)
+```
+
+
+
+El sesgo es cero en ambas estrategias lo cual es un indicio de que ambas estrategias son estimadores insesgados del total poblacional.
+
+La varianza de la Estrategia 2 es mayor que la de la Estrategia 1, lo que indica que el ordenamiento aleatorio puede introducir más variabilidad en las estimaciones.
+
+El CV de ambas estrategias es igual, lo cual sugiere que las dos estrategias tienen un buen nivel de precisión.
+
+La Estrategia 1, es decir ordenar por Provincia y Total de viviendas, presenta menos variabilidad, por lo cual podría ser la estrategia a elegir si queremos reducir la variabilidad en las estimaciones.
+
+
+
+# Ejercicio V (continuación del ejercicio IV)
+
+
+Probaremos otra estrategia para estimar los parámetros del ejercicio anterior, seleccionando una muestra mediante Madow, con la cantidad de viviendas del radio como variable auxiliar, ordenando la tabla según código de radio (jurisdicción +
+departamento + fracción + radio)
+
+```{r creamos Tabla Ejercico 5}
+
+#Creamos la tabla para el ejercicio 5. Eliminamos los radios sin viviendas o poblacion y lo ordenamos por codigo. 
+radios_2010E5 <- radios_2010E4[radios_2010E4$Viv_radio>0,]
+radios_2010E5 <- radios_2010E5[!is.na(radios_2010E5$Pob_radio),]
+
+# Hogares rancho- casilla
+radios_2010E5$Rancho_casilla <- radios_2010E5$Rancho + radios_2010E5$Casilla 
+radios_2010E5$Hogares <- radios_2010$HeladeraSi + radios_2010$HeladeraNo
+
+# N poblacional
+N <- nrow(radios_2010E5)
+
+# Tamano de la muestra
+n <- 240
+
+
+# Definimos el vector de probabilidades de seleccion
+radios_2010E5$pi_i <- n*radios_2010E5$Viv_radio/sum(radios_2010E5$Viv_radio)
+max(radios_2010E5$pi_i)
+
+# Ordenamos el marco de muestreo por codigo de radio
+radios_2010E5 <-  radios_2010E5[order(radios_2010E5$Codigo),]
+
+
+# Controlo que no haya pi_i mayores que 1, nulos ni missing
+max(radios_2010E5$pi_i) 
+min(radios_2010E5$pi_i)
+sum( !is.finite(radios_2010E5$pi_i))
+
+
+```
+
+```{r verifico pi_i}
+ summary(radios_2010E5$pi_i)
+```
+
+
+Seleccionamos mediante sampling, de la muestra de n=240 radios, mediante Madow, con total de viviendas del radio como variable auxiliar.
+
+```{r Sampling E5}
+
+# Seleccionamos la muestra y definimos el factor de expansion
+
+# Probabilidades de seleccion
+
+pikE5 <- radios_2010E5$pi_i
+
+s=  sampling::UPsystematic(pikE5)
+
+muestra_radiosE5 = radios_2010E5[s==1,]
+muestra_radiosE5$pondera <- 1/muestra_radiosE5$pi_i
+``` 
+
+
+
+
+```{r Survey E5, echo=TRUE}
+#Configuramos el diseño de muestra para la estimación en survey
+
+parametro <- sum(radios_2010E5$Rancho_casilla) 
+
+DesignE5 <-svydesign(id = ~1, weights = ~pondera, data=muestra_radiosE5)
+DesignE5
+
+# survey asume ahora muestreo con reposicion
+
+# Estimacion del total de poblacion
+EstTotalPobE5 <- svytotal( ~Pob_radio , DesignE5, deff=TRUE, cv=TRUE, ci=TRUE)
+EstTotalPobE5
+
+100*cv(EstTotalPobE5)
+survey::cv(EstTotalPobE5)
+
+df_estim_totalP <- data.frame(EstTotalPobE5)
+colnames(df_estim_totalP) <- c("Estimacion", "SE", "deff")
+
+df_estim_totalP$CV <- 100*df_estim_totalP$SE/df_estim_totalP$Estimacion
+df_estim_totalP
+
+# Estimacion del total de hogares que habitan Casa
+EstTotalCasaE5 <- svytotal( ~Casa , DesignE5, deff=TRUE, cv=TRUE, ci=TRUE)
+EstTotalCasaE5
+
+100*cv(EstTotalCasaE5)
+survey::cv(EstTotalCasaE5)
+
+df_estim_totalC <- data.frame(EstTotalCasaE5)
+colnames(df_estim_totalC) <- c("Estimacion", "SE", "deff")
+
+df_estim_totalC$CV <- 100*df_estim_totalC$SE/df_estim_totalC$Estimacion
+df_estim_totalC
+
+# Estimacion del total de hogares que habitan Rancho - casilla
+EstTotalRancho_casilla <- svytotal( ~Rancho_casilla, diseno, deff=TRUE, cv=TRUE, ci=TRUE)
+EstTotalRancho_casilla
+
+
+100*cv(EstTotalRancho_casilla)
+survey::cv(EstTotalRancho_casilla)
+
+df_estim_totalR <- data.frame(EstTotalRancho_casilla)
+colnames(df_estim_totalR) <- c("Estimacion", "SE", "deff")
+
+df_estim_totalR$CV <- 100*df_estim_totalR$SE/df_estim_totalR$Estimacion
+df_estim_totalR
+
+# Estimacion de la proporcion de hogares que habitan rancho casilla
+EstRatioRancho_casillaE5 <- svyratio(~Rancho_casilla,~Hogares, DesignE5, deff=TRUE, cv=TRUE, ci=TRUE)
+EstRatioRancho_casillaE5
+
+survey::cv(EstRatioRancho_casillaE5)
+deff <- deff(EstRatioRancho_casillaE5)
+deff
+
+ICE5  <- confint(EstRatioRancho_casillaE5)
+ICE5
+
+```
+
+
+```{r Survey E5}
+
+# Repetimos diez veces con un for
+
+estimo <- function(x){
+  s=  sampling::UPsystematic(pikE5)
+  muestra_radiosE5 = radios_2010E5[s==1,]
+  muestra_radiosE5$pondera <- 1/muestra_radiosE5$pi_i
+  EstRatioRancho_casillaE5 <- svyratio(~Rancho_casilla,~Hogares, DesignE5, deff=TRUE, cv=TRUE, ci=TRUE)
+  deff <- deff(EstRatioRancho_casillaE5)
+  cv   <- 100*survey::cv(EstRatioRancho_casillaE5)
+  
+  caja <- c(EstRatioRancho_casillaE5, deff, cv)
+  return(caja)
+}
+
+lista_aaE5 <- 1:10
+
+lista_estimacionesE5 <- lapply(lista_aaE5, estimo)
+
+df_estimaciones <- data.frame(matrix(unlist(lista_estimaciones), 
+                                     nrow=10, byrow=T))
+
+
+
+df_estim_ratio <- data.frame(Estimacion = EstRatioRancho_casillaE5[[1]],SE= sqrt(EstRatioRancho_casillaE5[[2]])) 
+df_estim_ratio$CV <- 100*df_estim_totalR$SE/df_estim_totalR$Estimacion
+df_estim_ratio$deff <- deff 
+colnames(df_estim_ratio) <- c("Estimacion", "SE", "cv", "deff")
+
+df_estim_ratio
+
+```
+
+```{r funcion Madow E5}
+
+# Funcion - Método de Madow con variable auxiliar Viv_radio.
+
+estimo_madow <- function(n){
+  radios_2010E5$pi_i <- n*radios_2010E5$Viv_radio/sum(radios_2010E5$Viv_radio)
+  pikE5 <- radios_2010E5$pi_i
+  s = sampling::UPsystematic(pikE5,eps=1e-6)
+  muestra_radiosE5 = radios_2010E5[s==1,]
+  muestra_radiosE5$pondera <- 1/muestra_radiosE5$pi_i
+  estimacionE5 <- sum(muestra_radiosE5$Pob_radio/muestra_radiosE5$pi_i)
+  return(estimacionE5)
+}
+
+#Madow
+lista <- rep(n,1000)
+lista_estim <- lapply(lista, estimo_madow)
+
+df_madow <- data.frame(matrix(unlist(lista_estim), nrow=length(lista_estim), byrow=TRUE))
+df_madow$diseno <- "Madow"
+colnames(df_madow) <- c("Estimacion", "diseno")
+
+```
+
+## Tabla
+
+
+
+# Ejercicio VI
+
+## MAS
+
+A partir de la encuesta realizada, el 53% de los electores (212 / 400) planean votar por el candidato X y la utilidad de esta información depende de los supuestos de MAS:
+
+Independencia: Los electores son independientes entre sí, el voto de una persona no afecta el voto de otra.
+
+Aleatoriedad: Los electores son seleccionadas de manera aleatoria en el universo, con la misma probabilidad de ser seleccionados.
+
+Tamaño de la muestra: En este caso, desconocemos el N, pero 400 electores puede ser un buen numero. 
+
+De acuerdo a esto, la utilidad de informacion que el estadístico puede brindar depende de si la muestra es representativa de la población. Dado que es una muestra aleatoria simple, y cada individuo tiene la misma probabilidad de ser seleccionado, como hemos mencionado, la muestra sería representativa.
+
+
+## Coeficiente de Variación 
+
+El coeficiente de variación (CV) es una medida que indica la precisión relativa de un estimador. Es la relación entre la desviación estándar del estimador y su valor esperado, multiplicada por 100.
+
+```{r Coef Var E6}
+
+n <- 400 
+p_hat <- 212 / 400
+
+# Desviación estándar de la proporción
+sigma_hat <- sqrt((p_hat * (1 - p_hat)) / n)
+
+# Coeficiente de variación (CV)
+CVE6 <- (sigma_hat / p_hat) * 100
+
+# Resultados
+CVE6
+```
+
+
+Dado el tamaño de la muestra y la variabilidad de las respuestas, la estimación de la proporción de votantes de X tiene una variabilidad relativa del 4.71%. Un CV menor al 10% indica que el estimador es bastante preciso y que la proporción muestral obtenida es un buen estimador de la proporción verdadera en la población. 
+
+## Conclusión 
+
+El estadístico entonces informa que el 53% de los electores en la muestra votarán por X. Esta información es útil, ya que la muestra aleatoria simple es representativa, bajo los supuestos de independencia y aleatoriedad.
+
+El CV del estimador indica que proporción estimada de 53% tiene una variabilidad del 4.71%, indicando que es bastante precisa. 
+
+# Ejercicio VII
+
+El candidato quiere saber el tamaño de muestra necesario para estimar el porcentaje de votos con un intervalo de confianza del 95% y una amplitud total de 1%. 
+
+Supone que obtendrá un porcentaje cercano al 50%.  
+
+La formula para obtener el tamaño de muestra para un intervalo es
+
+n = [ Z2 * p * (1−p)  ] / E2
+
+```{r Tamano muestra E7}
+
+
+Z <- 1.96  # Valor crítico para un intervalo de confianza del 95%
+p <- 0.5   # Proporción esperada de votos
+E <- 0.01  # Amplitud del intervalo de confianza (1%)
+
+# Calculo
+n <- (Z^2 * p * (1 - p)) / E^2
+
+
+print(n)
+
+```
+
+
+Para garantizar que el intervalo de confianza tenga una amplitud total de 1% con un nivel de confianza del 95%, se necesitaría una muestra de 9,604 electores.
+
+
+# Ejercicio VIII
+
+```{r}
+# Definir los parámetros
+n <- 24  # tamaño de la muestra
+x <- 0   # número de hogares con la característica rara
+confianza <- 0.90  # Nivel de confianza
+
+# Calcular el intervalo de confianza utilizando el intervalo de Clopper-Pearson
+resultado <- binom.confint(x, n, conf.level = confianza, methods = "exact")
+
+# Mostrar el intervalo de confianza
+resultado
+
+```
+

@@ -12,7 +12,7 @@ library(VIM)
 library(tidyr)
 
 
-setwd("D:/Boulots/universi/maestria_generacion_info/teoria_tecnicas_muestreo_2024")
+#setwd("D:/Boulots/universi/maestria_generacion_info/teoria_tecnicas_muestreo_2024")
 
 
 
@@ -60,9 +60,9 @@ n=400
 
 
 # Lectura de las tablas
-radios_sexo <- read_excel("cen2010_radios_sexo.xlsx")
-radios_bienes <- read_excel("cen2010_radios_bienes.xlsx")
-radios_tipo <- read_excel("cen2010_radios_tipo.xlsx")
+radios_sexo <- read_excel("data/cen2010_radios_sexo.xlsx")
+radios_bienes <- read_excel("data/cen2010_radios_bienes.xlsx")
+radios_tipo <- read_excel("data/cen2010_radios_tipo.xlsx")
 
 #  Juntamos los archivos para unificarlos en un unico dataframe
 radios_2010 = merge(radios_sexo, radios_bienes, by = "Codigo")
@@ -72,8 +72,7 @@ radios_2010 = merge(radios_2010, radios_tipo, by = "Codigo")
 # Poblacion total en cada radio
 radios_2010$Pob_radio <- radios_2010$Varon + radios_2010$Mujer 
 
-# Hogares rancho- casilla
-radios_2010$Rancho_casilla <- radios_2010$Rancho + radios_2010$Casilla 
+                               
 
 # Cantidad de viviendas en cada radio
 radios_2010$Viviendas <-  radios_2010$Casa + 
@@ -164,9 +163,9 @@ EstTotalPob <- svytotal( ~Pob_radio , diseno, deff=TRUE, cv=TRUE, ci=TRUE)
 EstTotalPob
 
 100*cv(EstTotalPob)
-survey :: cv(EstTotal)
+survey::cv(EstTotalPob) 
 
-df_estim_total <- data.frame(EstTotal)
+df_estim_total <- data.frame(EstTotalPob)
 colnames(df_estim_total) <- c("Estimacion", "SE", "deff")
 
 df_estim_total$cv <- 100*df_estim_total$SE/df_estim_total$Estimacion
@@ -177,9 +176,9 @@ EstTotalRancho <- svytotal( ~Rancho_casilla , diseno, deff=TRUE, cv=TRUE, ci=TRU
 EstTotalRancho
 
 100*cv(EstTotalRancho)
-survey :: cv(EstTotalRancho)
+survey::cv(EstTotalRancho)
 
-df_estim_total <- data.frame(EstTotal)
+df_estim_total <- data.frame(EstTotalRancho)
 colnames(df_estim_total) <- c("Estimacion", "SE", "deff")
 
 df_estim_total$cv <- 100*df_estim_total$SE/df_estim_total$Estimacion
@@ -195,7 +194,7 @@ EstRatio
 
 100*survey::cv(EstRatio)
 
-survey :: cv(EstRatio)
+survey::cv(EstRatio)
 deff <- deff(EstRatio)
 deff
 
@@ -207,7 +206,7 @@ IC
 
 estimo <- function(x){
   s=  sampling::UPsystematic(pik)
-  muestra_radios = radios_2010[s==1,]
+  muestra_radios = radios_2010[ns==1,]
   muestra_radios$pondera <- 1/muestra_radios$pi_i
   EstRatio <- svyratio(~Rancho_casilla, ~Hogares, 
                        diseno, deff=TRUE, cv=TRUE, ci=TRUE)
@@ -317,6 +316,7 @@ estimo_sistematico <- function(aa) {
   return(estim)
   
 }
+
 
 # Madow x tamano de muestra
 estimo_madow <- function(n){
