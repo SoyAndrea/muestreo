@@ -1,5 +1,5 @@
 ---
-title: "TP 1 - Muestreo"
+title: "TP 1 - Diseño de muestra y estimadores"
 author: "Gomez Vargas Andrea, Iummato Luciana, Pesce Andrea Gisele"
 date: "`r Sys.Date()`"
 output:
@@ -14,7 +14,6 @@ output:
       collapsed: true
     df_print: kable
 header-includes:
-     \usepackage{longtable}
      \renewcommand{\contentsname}{Contenido}
 ---
 
@@ -495,7 +494,7 @@ EstTotalPob <- survey :: svytotal(~Pob_radio, diseno, deff=TRUE, cv=TRUE, ci=TRU
 EstTotalPob
 
 # Puedo ahora extraer diferentes valores:
-survey :: cv(EstTotalPob)      # -> coeficiente de variacion
+survey::cv(EstTotalPob)      # -> coeficiente de variacion
 deff(EstTotalPob)    # -> efecto de diseno
 SE(EstTotalPob)      # -> desvio estandar
 confint(EstTotalPob) # -> intervalor de confianza (por defecto 95%)
@@ -573,7 +572,8 @@ df_EstTotalrancho$CV <-  100*df_EstTotalrancho$SE/df_EstTotalrancho$Estimacion
 
 
 # proporcion
-Estproporcion <- survey::svyratio(~rancho_casilla,~Viv_radio,  design = diseno, deff = TRUE, cv = TRUE, ci = TRUE)
+Estproporcion <- survey::svyratio(~rancho_casilla,~Viv_radio,  design = diseno, 
+                                  deff = TRUE, cv = TRUE, ci = TRUE)
 
 Estproporcion
 
@@ -643,7 +643,8 @@ El resultado de aa es 75. Le pondremos un # a la función dado que cada vez que 
 
 ```{r Seleccion sistemática}
 
-#Seleccionaremos una muestra sistemática de los datos en radios_2010E4 utilizando el arranque aleatorio aa = 75
+#Seleccionaremos una muestra sistemática de los datos en radios_2010E4 
+# utilizando el arranque aleatorio aa = 75
 
 
 s = radios_2010E4[ seq(aa,N,I), ]
@@ -656,7 +657,8 @@ Calcularemos una estimación del total poblacional y su error relativo para eval
 
 ```{r Precisión}
 
-#Primero realizaremos la estimación del total poblacional usando el método de Horvitz-Thompson, un estimador insesgado en muestreo sistemático.
+#Primero realizaremos la estimación del total poblacional usando el método de Horvitz-Thompson, 
+# un estimador insesgado en muestreo sistemático.
 
 estim <- I*sum(s$Pob_radio)
 print(estim)
@@ -748,7 +750,8 @@ print(I)
 
 # Arranque aleatorio
 # aa <- sample(1:I, 1)
-# La función arroja un aa de 191. Le colocamos # dado que sino arrojará un aa diferente en cada ejecución
+# La función arroja un aa de 191. Le colocamos # dado que sino arrojará un aa 
+# diferente en cada ejecución
 aa = 191
 print(aa)
 
@@ -804,7 +807,8 @@ print(estimRancho_CasillaE2)
 
 error_relPobE2 <- 100 * abs(ParametroPobE4 - estimPobE2) / ParametroPobE4
 error_relCasaE2 <- 100 * abs(ParametroCasaE4 - estimCasaE2) / ParametroCasaE4
-error_relRancho_CasillaE2 <- 100 * abs(ParametroRanchoCasillaE4 - estimRancho_CasillaE2) / ParametroRanchoCasillaE4
+error_relRancho_CasillaE2 <- 100 * abs(ParametroRanchoCasillaE4 - estimRancho_CasillaE2) / 
+                            ParametroRanchoCasillaE4
 
 print(error_relPobE2)
 print(error_relCasaE2)
@@ -871,12 +875,6 @@ DSE4       <- sqrt(VarianzaE4)
 CVestimsE4        <- 100*DSE4/parametro_poblacionalEst1
 deff_t1 = VarianzaE4 / V_mas
 
-# EsperanzaE4
-# SesgoE4
-# VarianzaE4
-# DSE4
-# CVestimsE4
-# deff_t1
 
 
 pob1 <- data.frame(
@@ -887,15 +885,8 @@ valor = c(EsperanzaE4,SesgoE4, VarianzaE4,DSE4,CVestimsE4,deff_t1)
 pob1
 ```
 
-- La esperanza, es decir, la estimación promedio de la población utilizando todas las muestras posible toma el mismo valor que el parametro poblacional, lo cual sugiere que el estimador es insesgado para esta estrategia. 
 
-- El sesgo, que es la diferencia entre la esperanza de la estimación y el valor verdadero, da cero, justo lo que se espera dado que el estimador es insesgado. El valor cero confirma que no hay desviación entre la media de las estimaciones y el valor poblacional.
-
-- La varianza es la medida de la dispersión de las estimaciones.
-
-- La desviación Estándar indica la variabilidad de las estimaciones alrededor de la media.
-
-- Finalmente el Coeficiente de Variación (CV) ayuda a comparar la precisión de la estimación en relación con el valor poblacional real, y el valor que toma (4,05) es bajo CV bajo (menor a 10%) por lo cual indica una buena precisión.
+Rancho Casilla
 
 ```{r}
 # Tamaño de la población y de la muestra
@@ -940,14 +931,6 @@ DSE4       <- sqrt(VarianzaE4)
 CVestimsE4        <- 100*DSE4/parametro_RanchoEst1
 deff_r1 = VarianzaE4 / V_mas
 
-# EsperanzaE4
-# SesgoE4
-# VarianzaE4
-# DSE4
-# CVestimsE4
-# deff_r1
-
-
 ranch1 <- data.frame(
 calculo = c("EsperanzaE4", "SesgoE4", "VarianzaE4", "DSE4","CVestimsE4", "deff_r1"),
 valor = c(EsperanzaE4,SesgoE4, VarianzaE4,DSE4,CVestimsE4,deff_r1)
@@ -956,6 +939,9 @@ valor = c(EsperanzaE4,SesgoE4, VarianzaE4,DSE4,CVestimsE4,deff_r1)
 ranch1
 
 ```
+
+Casa
+
 ```{r}
 # Tamaño de la población y de la muestra
 N <- nrow(Estrategia1E4)  # total de radios censales
@@ -998,14 +984,6 @@ VarianzaE4 <-  var(df_estim$Estimacion)*(N-1)/N
 DSE4       <- sqrt(VarianzaE4)
 CVestimsE4        <- 100*DSE4/parametro_CasaEst1
 deff_c1 = VarianzaE4 / V_mas_c
-
-# EsperanzaE4
-# SesgoE4
-# VarianzaE4
-# DSE4
-# CVestimsE4
-# deff_c1
-
 
 casa1 <- data.frame(
 calculo = c("EsperanzaE4", "SesgoE4", "VarianzaE4", "DSE4","CVestimsE4", "deff_c1"),
@@ -1062,12 +1040,6 @@ DSE4.2       <- sqrt(VarianzaE4.2)
 CVestimsE4.2        <- 100*DSE4.2/parametro_poblacionalEst2
 deff_2 = VarianzaE4.2 / V_mas
 
-# EsperanzaE4.2
-# SesgoE4.2
-# VarianzaE4.2
-# DSE4.2
-# CVestimsE4.2
-# deff_2
 
 pob2 <- data.frame(
 calculo = c("EsperanzaE4.2", "SesgoE4.2", "VarianzaE4.2", "DSE4.2","CVestimsE4.2", "deff_2"),
@@ -1121,17 +1093,13 @@ DSE4.2       <- sqrt(VarianzaE4.2)
 CVestimsE4.2        <- 100*DSE4.2/parametro_RanchoEst2
 deff_2r = VarianzaE4.2 / V_mas_r
 
-EsperanzaE4.2
-SesgoE4.2
-VarianzaE4.2
-DSE4.2
-CVestimsE4.2
-deff_2r
+
 
 ranch2 <- data.frame(
 calculo = c("EsperanzaE4.2", "SesgoE4.2", "VarianzaE4.2", "DSE4.2","CVestimsE4.2", "deff_2r"),
 valor = c(EsperanzaE4.2,SesgoE4.2, VarianzaE4.2,DSE4.2,CVestimsE4.2,deff_2r)
 )
+
 ranch2
 
 
@@ -1139,6 +1107,7 @@ ranch2
 
 
 Casa
+
 ```{r}
 # Tamaño de la población y de la muestra
 N <- nrow(Estrategia2E4)  # total de radios censales
@@ -1181,19 +1150,11 @@ DSE4.2       <- sqrt(VarianzaE4.2)
 CVestimsE4.2        <- 100*DSE4.2/parametro_CasaEst2
 deff_2c = VarianzaE4.2 / V_mas_c
 
-
-# EsperanzaE4.2
-# SesgoE4.2
-# VarianzaE4.2
-# DSE4.2
-# CVestimsE4.2
-# deff_2c
-
-
 casa2 <- data.frame(
 calculo = c("EsperanzaE4.2", "SesgoE4.2", "VarianzaE4.2", "DSE4.2","CVestimsE4.2", "deff_2c"),
 valor = c(EsperanzaE4.2,SesgoE4.2, VarianzaE4.2,DSE4.2,CVestimsE4.2,deff_2c)
 )
+
 casa2
 
 ```
@@ -1223,7 +1184,8 @@ comparativa <- read_xlsx("comparativa.xlsx")
 
 
 # Mostrar la tabla de comparación
-gt(comparativa) %>% 
+comparativa %>% 
+gt() %>% 
   tab_spanner(columns = ends_with("_1"), label = "Estrategia 1") %>% 
   tab_spanner(columns = ends_with("_2"), label = "Estrategia 2") %>% 
   cols_label(
@@ -1234,17 +1196,16 @@ gt(comparativa) %>%
   fmt_number(rows = 1, decimals = 0,   sep_mark = ".",dec_mark = ",",) %>% 
   fmt_number(rows = c(2:5), decimals = 2,   sep_mark = ".",dec_mark = ",")
 
+
+
+
 ```
 
 
 
-El sesgo es cero en ambas estrategias lo cual es un indicio de que ambas estrategias son estimadores insesgados del total poblacional.
+- El sesgo es cero en ambas estrategias lo cual es un indicio de que ambas estrategias son estimadores insesgados del total de población, total de hogares casa y total de hogares rancho-casilla.
 
-La varianza de la Estrategia 2 es mayor que la de la Estrategia 1, lo que indica que el ordenamiento aleatorio puede introducir más variabilidad en las estimaciones.
-
-El CV de ambas estrategias es igual, lo cual sugiere que las dos estrategias tienen un buen nivel de precisión.
-
-La Estrategia 1, es decir ordenar por Provincia y Total de viviendas, presenta menos variabilidad, por lo cual podría ser la estrategia a elegir si queremos reducir la variabilidad en las estimaciones.
+> La Estrategia 1, es decir el orden por Provincia y Total de viviendas, es la más optima ya que presenta menor coeficiente de variación(CV) y efecto de diseño(deff) en la tres unidades poblacionales calculadas, teniendo diferencias de casi 2 puntos con la estrategia 2 en tanto total de población y total de hogares que habitan vivienda tipo Casa, solo con el Total de hogares que habitan en viviendas rancho/casilla la diferencia entre estrategias es de 0.47-  
 
 
 
@@ -1439,7 +1400,9 @@ colnames(df_madow) <- c("Estimacion", "diseno")
 tabla <- openxlsx::read.xlsx("tabla_eje4.xlsx")
 tabla[, 2:7] <- round(tabla[, 2:7], 2)
 
-gt(tabla) %>% 
+
+c <- tabla %>% 
+gt() %>% 
   tab_spanner(columns = starts_with("sistematico1"), label = "Sistematico 1") %>% 
   tab_spanner(columns = starts_with("sistematico2"), label = "Sistematico 2") %>% 
   tab_spanner(columns = starts_with("madow"), label = "Madow") %>% 
@@ -1447,8 +1410,14 @@ gt(tabla) %>%
     ends_with("cv") ~ "CV",
     ends_with("deff") ~ "deff"
   )
+
+c
 ```
 
+
+
+
+\pagebreak
 
 # Ejercicio VI
 
