@@ -8,7 +8,7 @@ library(ggplot2)
 library(dplyr)
 library(fishmethods)
 
-setwd("D:/Boulots/universi/maestria_generacion_info/teoria_tecnicas_muestreo_2024")
+#setwd("D:/Boulots/universi/maestria_generacion_info/teoria_tecnicas_muestreo_2024")
 
 
 

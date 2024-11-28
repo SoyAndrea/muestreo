@@ -1,0 +1,33 @@
+---
+title: "22NOV"
+author: "agomezvargas"
+date: "2024-11-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(survey)
+library(openxlsx)
+
+dato <- read.xlsx("data2211.xlsx")
+```
+
+
+# Calcular promedio DE LIBROS LEIDOS 
+
+```{r}
+# Crear diseño muestral
+options(survey.lonely.psu = "adjust")
+
+diseno <- svydesign(id=~UPE,strata=~estrato2, weights=~F, data=dato,fpc =~fpc)
+diseno
+
+
+# Calcular promedio
+Est_media <- survey::svymean(~libros, diseno, deff=TRUE, cv=TRUE, ci=TRUE)
+Est_media
+
+```
+
