@@ -23,7 +23,6 @@ Sys.which("make")
 #install.packages("stratification")
 library(stratification)
 
-setwd("C:/Users/Gisele/Desktop/muestreo")
 
 Deptos2022 <- read_excel("tabla_deptos_2022.xlsx")
 
@@ -106,13 +105,14 @@ Realizaremos una muestra aleatoria simple sin reemplazo
 
 ```{r MAS}
 
-Deptos2022$nh <- rep(nh, times = table(Deptos2022$estrato))
-
 nh <- c(4, 11, 20, 13)
 
+Deptos2022 <- Deptos2022[order(Deptos2022$estrato), ]
+
+set.seed(1234)
 s <- sampling::strata(Deptos2022,
                       stratanames = "estrato", 
-            size = Deptos2022$nh, method = "srswor")
+            size = nh, method = "srswor")
 
 head(s) 
 
@@ -120,23 +120,30 @@ head(s)
 
 ```{r unidades}
 # Extrae las unidades seleccionadas
-smuestra <- Deptos2022[s$ID_unit, ]
+smuestra <- sampling::getdata(Deptos2022, s)
 
 # Verifica la composición de la muestra por estrato
 table(smuestra$estrato)
+
+resumen
+
+smuestra <- merge(smuestra, resumen, "estrato")
+smuestra$fpc = smuestra$Nh
+
 ```
 
 
-El resultado de la tabla muestra que el número de unidades seleccionadas por estrato es el mismo para todos los estratos, siendo 4.
 
 
 ### Declarar el diseño de muestreo con survey
 
 ```{r diseño}
+
 diseno <- svydesign(ids = ~1,  
                    strata = ~estrato, 
-                   weights = ~nh, 
-                   data = Deptos2022)  
+                   probs = ~Prob, 
+                   data = smuestra,
+                   fpc = ~fpc)  
 ```
 
 ### Estimaremos el total de Y, con el correspondiente CV y deff.
@@ -144,10 +151,10 @@ diseno <- svydesign(ids = ~1,
 Calculamos primero total de Y con la función de survey
 
 ```{r TotalY}
-total_Y <- svytotal(~Y, design = diseno)
+total_Y <- svytotal(~Y, design = diseno, deff = T)
 total_Y
 ```
-La estimación del total de Y en la población es 359925777 y la varianza asociada 28067998
+La estimación del total de Y en la población es 43013745 y el desvio estandar 1635740
 
 
 ```{r verificacion de CV }
@@ -155,31 +162,13 @@ La estimación del total de Y en la población es 359925777 y la varianza asocia
 #Calculamos el CV y el intervalo de confianza
 cv(total_Y)
 confint(total_Y)
-
+sum(Deptos2022$Y) >= confint(total_Y)[1] & sum(Deptos2022$Y) <= confint(total_Y)[2]
 ```
-El CV es 7.8%, lo cual es mayor al 5% que esperabamos, lo cual implica que la estimación tiene una mayor incertidumbre a la esperada.
+El CV es 3.8%, lo cual es menor al 5% definido por diseño para el calculo del tamaño de muestra y cortes optimos de los estratos.
 
-Con un 95% de confianza, el total de Y en la población se encuentra entre 304913511 y 414938043.
+Con un 95% de confianza, el total de Y en la población se encuentra entre 39807754 y 46219736. El intervalo contiene al verdadero valor del parametro. 
 
-Finalmente sacamos el deff
-
-```{r deff}
-
-smuestra$ID_unit <- 1:nrow(smuestra)
-smuestra$peso <- 1
-
-# Definir el diseño muestral
-diseno <- svydesign(ids = ~ID_unit, strata = ~estrato, data = smuestra, weights = ~peso )
-
-deff_value <- svymean(~Y, diseno, deff = TRUE)
-deff_value
-
-total_Y <- svytotal(~Y, design = diseno, deff = TRUE)
-total_Y
-
-```
-El valor Inf (infinito) en el DEFF indica que el diseño no tiene suficiente variabilidad o estructura para calcular un efecto de diseño real.
-Dado que es un MAS o tal vez no hay tiene suficientes estratos o variabilidad entre ellos, el DEFF puede ser infinito. 
+Finalmente el deff es 0.0267, por lo que el diseño resulta mas eficiente que seleccionar un MAS sobre todo el marco sin estratificar.
 
 
 
