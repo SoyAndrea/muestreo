@@ -1,0 +1,168 @@
+---
+title: "Ejercicio_2_TP2"
+author: "Luciana Iummato"
+date: "2024-11-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# Configura las opciones globales para todos los chunks
+knitr::opts_chunk$set(
+  echo = TRUE,        # Mostrar código en los chunks
+  message = FALSE,    # No mostrar mensajes
+  warning = FALSE,    # No mostrar advertencias
+  error = FALSE       # No mostrar errores
+)
+
+```
+
+```{r}
+# Paquetes que necesitaremos
+library(readxl)
+library(writexl)
+library(ggplot2)
+library(sampling)
+library(survey)
+library(tidyverse)
+
+```
+
+```{r}
+#Creación de dataframe
+zona<-c("A","B","C")
+hogares_marco<-c(25000,65000,20000)
+hogares_encuestados<-c(200,150,250)
+hogares_pobres_muestra<-c(70,80,22)
+poblacion_pobre_encuestada<-c(260,400,60)
+poblacion_encuestada<-c(820,700,600)
+  
+tabla_datos<-as.data.frame(cbind(zona,hogares_marco,hogares_encuestados,hogares_pobres_muestra,poblacion_pobre_encuestada,poblacion_encuestada))
+
+#str(tabla_datos)
+
+tabla_datos <- tabla_datos %>%
+  mutate(across(-1, as.numeric))
+
+print(tabla_datos)
+```
+
+
+## 1. Presentar en una tabla o gráfico la proporción de hogares pobres por zona
+
+```{r}
+tabla_datos<-tabla_datos %>% 
+  mutate(ph_hogares=hogares_pobres_muestra/hogares_encuestados,
+         ph_poblacion=poblacion_pobre_encuestada/poblacion_encuestada)
+
+print(tabla_datos[, c("zona", "ph_hogares","ph_poblacion")])
+
+```
+
+
+## 2. Hallar el factor de expansión de cada hogar de la muestra y de cada persona encuestada
+
+```{r}
+tabla_datos<-tabla_datos %>% 
+  mutate(F_hogar=hogares_marco/hogares_encuestados,
+         F_persona=hogares_marco/hogares_encuestados)
+
+```
+
+Como todas las personas del hogar son encuestadas, la probabilidad de selección de una persona es igual a la del hogar y por tanto el factor de expansión, que es la inversa de la probabilidad de selección, también lo será.
+
+## 3. Las tres zonas presentan un perfil diferencial en términos de pobreza?
+Si se observan las estimaciones muestrales puede observarse que la zona B presenta una proporción de hogares pobres mucho mayor que los demás estratos, lo mismo sucede con la proporción de las personas pobres. Sin embargo, para afirmar que existen diferencias entre los estratos hay que analizar los intervalos de confianza para cada estimación, si los mismos no se solapan puede afirmarse, con el nivel de confianza definido, que las estimaciones de pobreza difieren entre los estratos, pudiendo determinarse el estrato con mayor y menor pobreza. Dicho procedimiento se realiza en el punto n°4.
+
+## 4. Estimar, con la muestra seleccionada, el total de hogares pobres y la proporción de hogares pobres, el CV y deff correspondientes. Dar un IC(90%) para cada estimación.
+
+```{r}
+#Estimación 
+
+n=sum(tabla_datos$hogares_encuestados) # en la consigna dice 700, no son 600 hogares?
+N=sum(tabla_datos$hogares_marco)
+
+#peso en cada estrato
+
+tabla_datos<-tabla_datos %>% 
+  mutate(wh=hogares_marco/N)
+
+#peso al cuadrado en cada estrato
+
+tabla_datos<-tabla_datos %>% 
+  mutate(wh2=(hogares_marco/N)^2)
+
+#s2 en cada estrato
+tabla_datos <- tabla_datos %>%
+  mutate(sh2= ph_hogares * (1 - ph_hogares) )
+
+#varianza en estratos
+tabla_datos <- tabla_datos %>%
+  mutate(varianza= wh2*sh2/hogares_encuestados)
+
+#varianza del estimador
+varianza_estimador=sum(tabla_datos$varianza)
+
+#desvío 
+ds=sqrt(varianza_estimador)
+
+#probabilidad en estrato
+tabla_datos <- tabla_datos %>%
+  mutate(ph_wh2= ph_hogares * wh)
+
+
+#estimación del total de hogares pobres 
+estimacion_total_hogares <-  sum(tabla_datos$ph_wh2 * N)
+print(paste("Estimación total hogares pobres: ", estimacion_total_hogares))
+
+#Intervalos de confianza 90%
+IC_infT <- estimacion_total_hogares - 1.64 * ds
+IC_supT <- estimacion_total_hogares + 1.64 * ds
+print(paste("IC Inferior Total hogares pobres: ", IC_infT))
+print(paste("IC Superior Total hogares pobres: ", IC_supT))
+
+#estimación de la proporción de hogares pobres 
+estimacion_proporcion_hogares <-  sum(tabla_datos$ph_wh2 * 100)
+print(paste("Estimación proporción hogares pobres: ", estimacion_proporcion_hogares))
+
+IC_infP <- estimacion_proporcion_hogares - 1.64 * ds
+IC_supP <- estimacion_proporcion_hogares + 1.64 * ds
+print(paste("IC Inferior Proporción hogares pobres: ", IC_infP))
+print(paste("IC Superior Proporción hogares pobres: ", IC_supP))
+
+#CV
+
+CV_total <- ds / estimacion_total_hogares * 100 
+print(paste("CV del total: ", CV_total))
+
+CV_prop <- ds / sum(tabla_datos$ph_wh2) * 100 
+print(paste("CV de la proporción: ", CV_prop))
+
+#varianza en MAS (1-n/N)*s2/n (NO ME QUEDA CLARO SI DIVIDO POR n)
+
+p_total_hogares=sum(tabla_datos$hogares_pobres_muestra)/sum(tabla_datos$hogares_encuestados)
+s2_total= p_total_hogares * (1 - p_total_hogares) 
+var_MAS=(1-n/N)*s2_total/n
+
+#DEFF
+deff=varianza_estimador/var_MAS
+print(paste("DEFF: ", deff))
+
+```
+
+
+## 5. Por qué, siendo que las tres zonas son diferentes respecto a la variable bajo estudio (proporción de hogares pobres), el deff es claramente mayor a 1 en la estimación del total y proporción de hogares pobres?
+
+Porque la asignación de la cantidad de hogares seleccionado por estrato no se hizo en función de un criterio adecuado, no fue uniforme, ni ponderada ni óptima.De hecho en el estrato donde hay mas hogares en el universo se seleccionan menos hogares en la muestra y viceversa.
+
+## 6. Estimar el total de personas pobres y la proporción de personas pobres (recordar que población pobre es la que habita en hogares pobres). Se puede con los datos disponibles estimar el CV y deff de estas estimaciones?
+
+```{r}
+
+```
+
+## 7. En base a los resultados de la encuesta, cómo debería haber sido la distribución de la muestra por zona si el objetivo era estimar el total de hogares pobres en la localidad? (obtener la asignación de Neyman)
+
+```{r}
+
+```
+

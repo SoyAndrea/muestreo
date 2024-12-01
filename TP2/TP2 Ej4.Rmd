@@ -1,0 +1,187 @@
+
+## Ejercicio 4
+
+Trabajaremos en este ejercicio con nuestro archivo tabla_deptos_2022, sobre la cual estimaremos el total de la variable Y continua población 2022, que según se indica posee una distribución asimétrica. Las condiciones de trabajo son:
+- El máximo de estratos que se pueden definir es H=4
+- Se trabajará con un CV menor al 5%
+
+Para ello se solicita estratificar el marco de muestreo mediante Y y determinar la cantidad
+de muestra (mediante MAS) a seleccionar en cada estrato, para cumplir con dicho CV.
+
+Se definirán tres cortes que definenden los cuatro estratos y la cantidad de muestra a
+seleccionar en cada uno de ellos. 
+
+```{r Ejercicio 4}
+library(readxl)
+library(ggplot2)
+library(dplyr)
+#install.packages("sampling")
+library(sampling)
+#install.packages("survey")
+library(survey)
+Sys.which("make") 
+#install.packages("stratification")
+library(stratification)
+
+setwd("C:/Users/Gisele/Desktop/muestreo")
+
+Deptos2022 <- read_excel("tabla_deptos_2022.xlsx")
+
+```
+
+
+### Estratificación, tamaño de muestra y asignación 
+
+Utilizaremos el comando strata.LH del paquete stratification para conseguir la ‘mejor’ estratificación, tamaño de muestra y asignación, indicando un alloc = c(0.5,0.5,0)).
+
+```{r estratificación}
+
+Estratificacion <- strata.LH(
+  x = Deptos2022$Y,   # Variable de estratificación
+  CV = 0.05,          # CV
+  Ls = 4,             # Estratos
+  alloc = c(0.5, 0.5, 0),  # Asignación óptima
+  algo = "Kozak"      
+)
+```
+
+
+El comando strata.LH nos da los puntos de corte que definen los estratos y el tamaño de muestra en cada uno. 
+
+```{r puntos de corte}
+Estratificacion$bh
+```
+De esta manera, los estratos quedaron conformados de la siguiente manera: 
+Estrato 1: Y ≤ 33465
+Estrato 2: 33465 < Y ≤ 128840.5
+Estrato 3: 128840.5 < Y ≤ 453186
+Estrato 4: Y > 453186
+
+```{r tamaño de la muestra}
+Estratificacion$nh
+```
+El comando selecciona entonces 4 unidades del Estrato 1, 11 unidades del Estrato 2, 20 unidades del Estrato 3 y 13 unidades del Estrato 4.  
+
+
+### Nh y nh de cada estrato
+
+El nh lo obtuvimos en el ejercicio anterior. Ahora sacaremos el Nh, es decir, el tamaño poblacional de cada estrato. 
+Este valor indica cuántas unidades pertenecen a cada estrato en el marco poblacional. Lo obtienes sumando las unidades dentro de cada estrato una vez los cortes están definidos.
+
+```{r NH}
+table(cut(Deptos2022$Y, breaks = c(-Inf, Estratificacion$bh, Inf)))
+
+```
+
+Los resultados son:
+Nh para el Estrato 1: 271 
+Nh para el Estrato 2: 162
+Nh para el Estrato 3: 78
+Nh para el Estrato 4: 16
+
+```{r NH}
+
+#Creamos la columna de estrato en Deptos2022
+Deptos2022 <- Deptos2022 %>%
+ mutate(estrato = cut(
+    Y,
+    breaks = c(-Inf, Estratificacion$bh, Inf),  
+    labels = 1:(length(Estratificacion$bh) + 1),  
+    include.lowest = TRUE
+  ))
+  
+#Sumamos Nh y nh
+resumen <- Deptos2022 %>%
+  group_by(estrato) %>%
+  summarise(Nh = n()) %>%
+  mutate(nh = Estratificacion$nh)
+
+resumen
+```
+
+
+### Seleccionamos una muestra con sampling (MAS en cada estrato)
+
+Realizaremos una muestra aleatoria simple sin reemplazo
+
+```{r MAS}
+
+Deptos2022$nh <- rep(nh, times = table(Deptos2022$estrato))
+
+nh <- c(4, 11, 20, 13)
+
+s <- sampling::strata(Deptos2022,
+                      stratanames = "estrato", 
+            size = Deptos2022$nh, method = "srswor")
+
+head(s) 
+
+```
+
+```{r unidades}
+# Extrae las unidades seleccionadas
+smuestra <- Deptos2022[s$ID_unit, ]
+
+# Verifica la composición de la muestra por estrato
+table(smuestra$estrato)
+```
+
+
+El resultado de la tabla muestra que el número de unidades seleccionadas por estrato es el mismo para todos los estratos, siendo 4.
+
+
+### Declarar el diseño de muestreo con survey
+
+```{r diseño}
+diseno <- svydesign(ids = ~1,  
+                   strata = ~estrato, 
+                   weights = ~nh, 
+                   data = Deptos2022)  
+```
+
+### Estimaremos el total de Y, con el correspondiente CV y deff.
+
+Calculamos primero total de Y con la función de survey
+
+```{r TotalY}
+total_Y <- svytotal(~Y, design = diseno)
+total_Y
+```
+La estimación del total de Y en la población es 359925777 y la varianza asociada 28067998
+
+
+```{r verificacion de CV }
+
+#Calculamos el CV y el intervalo de confianza
+cv(total_Y)
+confint(total_Y)
+
+```
+El CV es 7.8%, lo cual es mayor al 5% que esperabamos, lo cual implica que la estimación tiene una mayor incertidumbre a la esperada.
+
+Con un 95% de confianza, el total de Y en la población se encuentra entre 304913511 y 414938043.
+
+Finalmente sacamos el deff
+
+```{r deff}
+
+smuestra$ID_unit <- 1:nrow(smuestra)
+smuestra$peso <- 1
+
+# Definir el diseño muestral
+diseno <- svydesign(ids = ~ID_unit, strata = ~estrato, data = smuestra, weights = ~peso )
+
+deff_value <- svymean(~Y, diseno, deff = TRUE)
+deff_value
+
+total_Y <- svytotal(~Y, design = diseno, deff = TRUE)
+total_Y
+
+```
+El valor Inf (infinito) en el DEFF indica que el diseño no tiene suficiente variabilidad o estructura para calcular un efecto de diseño real.
+Dado que es un MAS o tal vez no hay tiene suficientes estratos o variabilidad entre ellos, el DEFF puede ser infinito. 
+
+
+
+
+

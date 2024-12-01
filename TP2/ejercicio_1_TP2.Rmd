@@ -1,0 +1,805 @@
+---
+title: "EJERCICIO 1 TP 2"
+author: "Luciana Iummato"
+date: "2024-11-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# Configura las opciones globales para todos los chunks
+knitr::opts_chunk$set(
+  echo = TRUE,        # Mostrar código en los chunks
+  message = FALSE,    # No mostrar mensajes
+  warning = FALSE,    # No mostrar advertencias
+  error = FALSE       # No mostrar errores
+)
+
+```
+
+
+```{r}
+# Paquetes que necesitaremos
+library(readxl)
+library(writexl)
+library(ggplot2)
+library(dplyr)
+library(sampling)
+library(survey)
+library(tidyverse)
+
+```
+
+```{r}
+#Importar datos
+
+marco <- read.csv("MESAS_ESCRUTADAS_Cierre.csv", encoding = "UTF-8")
+```
+
+```{r}
+#Explorar datos
+
+names(marco)
+glimpse(marco)
+marco$Agrupacion<-as.factor(marco$Agrupacion)
+```
+
+## 1. Qué cantidad mínima de variables identifica una mesa electoral? Y un colegio?
+
+a. Mesa electoral: Distrito, sección, circuito, establecimiento y el propio código de la mesa
+b. Establecimiento: Distrito, sección, circuito, y el propio nombre del establecimiento
+
+## 2. Hallar la proporción de votos a diputados por cada uno de los cuatro agrupamientos de partidos (son 3 segun el enunciado inicial del TP:FdT, JxC y FIT)
+
+```{r}
+
+#Filtro votos positivos + votos diputados
+marco_positivos<-marco %>% filter(tipoVoto=="positivo"& Cargo=="DIPUTADOS NACIONALES")
+```
+
+```{r}
+# Elimino algunas variables
+marco_positivos$Codigo <- NULL
+marco_positivos$Fecha <- NULL
+marco_positivos$Cargo <- NULL
+marco_positivos$envio <- NULL
+marco_positivos$idAgrupacion <- NULL
+marco_positivos$idCargo <- NULL
+marco_positivos$idAgrupacionInt <- NULL
+```
+
+```{r}
+total_votos <- marco_positivos %>% 
+  summarise(total_votos = sum(votos)) %>% 
+  pull(total_votos)
+
+print(total_votos)
+```
+
+```{r}
+#Recodificar partidos
+marco_positivos$Partido <- "Resto"
+marco_positivos$Partido <-
+  ifelse(substr(marco_positivos$Agrupacion,1,15)=="FRENTE DE TODOS","FdT",marco_positivos$Partido)
+marco_positivos$Partido <-
+  ifelse(substr(marco_positivos$Agrupacion,1,19)==
+           "FRENTE DE IZQUIERDA","FIT",marco_positivos$Partido)
+marco_positivos$Partido <- ifelse(substr(marco_positivos$Agrupacion,1,6)==
+                                "JUNTOS","Juntos",marco_positivos$Partido)
+```
+
+```{r}
+#proporción de voto a diputados por partidos
+proporciones<-marco_positivos %>% 
+  group_by(Partido) %>% 
+  summarise(votos_agrupacion= sum(votos),
+            proporcion=votos_agrupacion/total_votos)
+
+print(proporciones)
+
+```
+
+## 3. Tabular la cantidad de colegios electorales, mesas electorales y electores por Estrato
+6 estratos: CABA, Partidos del Gran Buenos Aires, Resto de Buenos Aires, 
+Región Pampeana (Córdoba, Santa Fé, La Pampa, Entre Ríos), NEA - NOA, Resto
+
+```{r}
+#creación variable estratos
+table(marco_positivos$Distrito)
+
+GBA = c("Avellaneda","Almirante Brown","Berazategui","Esteban Echeverría",
+         "Ezeiza","Florencio Varela","General San Martín","Hurlingham","Ituzaingó",
+         "José C. Paz","La Matanza","Lanús","Lomas de Zamora","Malvinas Argentinas","Merlo","Moreno","Morón",
+         "Quilmes","San Fernando","San Isidro","San Miguel","Tigre","Tres de Febrero","Vicente López")
+
+marco_positivos<-  marco_positivos %>% mutate(estrato =case_when(
+  Distrito== "Ciudad Autónoma de Buenos Aires" ~ "CABA",
+  Distrito== "Córdoba" | Distrito== "Entre Ríos"| Distrito== "La Pampa"| Distrito== "Santa Fe"  ~ "Región_pampeana",
+  Distrito== "Chaco" | Distrito== "Catamarca"| Distrito== "Corrientes"| Distrito== "Formosa"  | Distrito== "Santiago del Estero"  |
+  Distrito== "Jujuy" | Distrito== "Misiones"| Distrito== "La Rioja"| Distrito== "Salta"| Distrito== "Tucumán"~ "NEA_NOA",
+  Seccion %in% GBA & Distrito== "Buenos Aires"~ "GBA",
+  !Seccion %in% GBA & Distrito== "Buenos Aires" ~ "Resto_BsAs",
+   TRUE~"Resto_país"))
+
+table(marco_positivos$Distrito,marco_positivos$estrato)
+
+```
+
+```{r}
+#Creación de tabla de estratos 
+tabla_estratos0 <-marco_positivos %>%
+  group_by(estrato,Distrito,IdSeccion,IdCircuito, Establecimiento,Mesa) %>% 
+  summarise(electores = first(electores), .groups = "drop")
+
+tabla_estratos1<-tabla_estratos0 %>% 
+ group_by(estrato,Distrito,IdSeccion,IdCircuito, Establecimiento) %>% 
+ summarise(mesas= n(),
+           electores = sum(electores))
+ 
+tabla_estratos_final <- tabla_estratos1 %>%
+ group_by(estrato) %>%
+ summarise(
+ Establecimientos = n(),
+ TotalMesas = sum(mesas),
+ TotalElectores = sum(electores)
+   )
+#prueba<-marco_positivos %>% filter(estrato=="CABA")
+
+#write.csv(prueba,"prueba.csv")
+#write.csv(tabla_estratos_final,"tabla_estratos_final.csv")
+```
+
+
+## 4. Construir a partir del archivo dado una tabla de mesas electorales (lo necesitaremos más adelante),cada una con el total de votos a cada partido, el total de votos positivos y las variables de identificación.
+
+```{r}
+tabla_votos_mesa <-marco_positivos %>%
+  group_by(estrato,Distrito, IdSeccion,IdCircuito, Establecimiento,Mesa,Partido) %>% 
+  summarise(Voto = sum(votos,na.rm = TRUE))%>%
+  pivot_wider(names_from = Partido, 
+              values_from = Voto)%>%
+  mutate(
+    # Reemplaza NAs por 0 en las columnas de votos
+    FdT = if_else(is.na(FdT), 0, FdT),
+    Juntos = if_else(is.na(Juntos), 0, Juntos),
+    FIT = if_else(is.na(FIT), 0, FIT),
+    Resto = if_else(is.na(Resto), 0, Resto),
+    # Calcula el total con los valores de votos
+    Total = FdT + Juntos + FIT + Resto
+  ) %>%
+  ungroup()
+
+#prueba2<-marco_positivos %>% filter(Establecimiento=="CENOF Centro Isauro Arancibia")
+#write.csv(prueba2,"prueba2.csv")
+```
+
+## 5. A partir de la tabla de mesas electorales construir la tabla de colegios electorales, cada uno con el total de votos a cada partido, el total de votos positivos y las variables de identificación.
+
+```{r}
+tabla_votos_establecimiento <-marco_positivos %>%
+  group_by(estrato,Distrito, IdSeccion,IdCircuito, Establecimiento,Partido) %>% 
+  summarise(Voto = sum(votos,na.rm = TRUE))%>%
+  pivot_wider(names_from = Partido, 
+              values_from = Voto)%>%
+  mutate(
+    # Reemplaza NAs por 0 en las columnas de votos
+    FdT = if_else(is.na(FdT), 0, FdT),
+    Juntos = if_else(is.na(Juntos), 0, Juntos),
+    FIT = if_else(is.na(FIT), 0, FIT),
+    Resto = if_else(is.na(Resto), 0, Resto),
+    # Calcula el total con los valores de votos
+    Total = FdT + Juntos + FIT + Resto
+  ) %>%
+  ungroup()
+
+```
+
+## 6. Tabular y graficar los tres totales y los tres porcentajes poblacionales a estimar
+
+```{r}
+#Tabla
+totales <- tabla_votos_establecimiento %>%
+  summarise(
+    Total_FdT = sum(FdT,na.rm = TRUE),
+    Total_Juntos = sum(Juntos,na.rm = TRUE),
+    Total_FIT = sum(FIT,na.rm = TRUE),
+    Total_Resto = sum(Resto,na.rm = TRUE),
+    Total_votos = sum(Total,na.rm = TRUE),
+    Porcentaje_FdT = round(Total_FdT/Total_votos*100,2),
+    Porcentaje_Juntos = round(Total_Juntos/Total_votos*100,2),
+    Porcentaje_FIT = round(Total_FIT/Total_votos*100,2),
+    Porcentaje_Resto = round(Total_Resto/Total_votos*100,2)
+  )
+
+library(DT)
+datatable(totales)
+
+
+```
+
+```{r}
+#Gráfico
+totales_long <- totales %>%
+  select(Porcentaje_FdT, Porcentaje_FIT, Porcentaje_Juntos) %>%
+  pivot_longer(cols = everything(), names_to = "Partido", values_to = "Porcentaje")
+
+# Limpiar los nombres de los partidos
+totales_long$Partido <- gsub("_Porcentaje", "", totales_long$Partido)
+
+ggplot(totales_long, aes(x = Partido, y = Porcentaje, fill = Partido)) +
+  geom_col() + # Gráfico de barras
+  geom_text(aes(label = paste0(Porcentaje, "%")),  # Agregar etiquetas con porcentajes
+            vjust = -0.5, size = 4) +              # Ajustar posición y tamaño del texto
+  labs(
+    title = "Porcentaje de votos por partido",
+    x = "Partidos",
+    y = "Porcentaje de votos"
+  ) +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set3") # Escala de colores agradable
+```
+
+
+## 7. Seleccionar con sampling una muestra de colegios con cada estrategia
+
+### Estrategia 1 con MAS
+
+```{r} 
+
+# Cantidad de estratos 
+H=6
+#tamaño muestra establecimientos
+n=400
+#tamaño universo establecimientos
+N=sum(tabla_estratos_final$Establecimientos) 
+
+```
+
+
+```{r}
+#Creo variables para ponderar la muestra en mi marco
+tabla_estratos_final<-tabla_estratos_final %>% 
+  mutate(pesos=Establecimientos/N,
+         n_prop= round(n*TotalElectores/sum(TotalElectores)))
+# Control
+sum(tabla_estratos_final$n_prop)
+```
+
+
+```{r}
+#Agrego fpc a marco muestral (establecimientos por estrato?)
+tabla_votos_establecimiento <-  tabla_votos_establecimiento %>%
+  group_by(estrato) %>%
+  mutate(fpc=n())
+```
+
+```{r}
+#Ordeno el marco de muestreo por estrato (lo pide sampling)
+tabla_votos_establecimiento <-  tabla_votos_establecimiento[order(tabla_votos_establecimiento$estrato),]
+
+```
+
+```{r}
+#Selección de muestra
+smplMAS = sampling::strata(tabla_votos_establecimiento, stratanames = c("estrato") , 
+                             size=tabla_estratos_final$n_prop , description=TRUE, 
+                             method = "srswor")
+
+```
+
+```{r}
+# Recupero datos del marco de muestreo
+muestra_casos <- sampling :: getdata(tabla_votos_establecimiento,smplMAS)
+```
+
+```{r}
+# Calculo el factor de expansion utilizando probabilidad de seleccion calculada 
+muestra_casos$pondera <- 1/muestra_casos$Prob
+```
+
+
+## 8. Calcular con survey las estimaciones pedidas, junto a sus CV, IC(90%) y deff.
+
+```{r}
+# Le indico a survey el diseno de muestra
+# Indico fpc por estrato
+diseno <- survey :: svydesign(id=~1, strata = ~estrato, 
+                              weights = ~pondera,  data=muestra_casos,
+                              fpc = ~fpc)
+diseno
+
+```
+
+```{r}
+#Estimaciones de totales
+# FdT
+EstimTotalFdT <- survey :: svytotal(~FdT, diseno, deff=TRUE, cv=TRUE )
+EstimTotalFdT
+cv(EstimTotalFdT)
+deff(EstimTotalFdT)
+confint(EstimTotalFdT)
+
+# FIT
+EstimTotalFIT <- survey :: svytotal(~FIT, diseno, deff=TRUE, cv=TRUE )
+EstimTotalFIT
+cv(EstimTotalFIT)
+deff(EstimTotalFIT)
+confint(EstimTotalFdT)
+
+# Juntos
+EstimTotalJuntos <- survey :: svytotal(~Juntos, diseno, deff=TRUE, cv=TRUE )
+EstimTotalJuntos
+cv(EstimTotalJuntos)
+deff(EstimTotalJuntos)
+confint(EstimTotalFdT)
+
+```
+```{r}
+#Dataframe de totales
+#FdT
+# Extraer el total y el error estándar
+total <- coef(EstimTotalFdT)  # Estimación del total
+se <- SE(EstimTotalFdT)       # Error estándar
+
+# Extraer coeficiente de variación y diseño efectivo
+cv_val <- cv(EstimTotalFdT)   # Coeficiente de variación
+deff_val <- deff(EstimTotalFdT)  # Diseño efectivo
+
+# Extraer el intervalo de confianza
+conf <- confint(EstimTotalFdT)  # Intervalo de confianza
+
+# Crear un data.frame con los resultados
+resultados_totalesFdT <- data.frame(
+  Total = total,
+  SE = se,
+  CV = cv_val,
+  Deff = deff_val,
+  IC_Lower = conf[, 1],  # Límite inferior del intervalo de confianza
+  IC_Upper = conf[, 2]   # Límite superior del intervalo de confianza
+)
+
+#FIT
+# Extraer el total y el error estándar
+total <- coef(EstimTotalFIT)  # Estimación del total
+se <- SE(EstimTotalFIT)       # Error estándar
+
+# Extraer coeficiente de variación y diseño efectivo
+cv_val <- cv(EstimTotalFIT)   # Coeficiente de variación
+deff_val <- deff(EstimTotalFIT)  # Diseño efectivo
+
+# Extraer el intervalo de confianza
+conf <- confint(EstimTotalFIT)  # Intervalo de confianza
+
+# Crear un data.frame con los resultados
+resultados_totalesFIT <- data.frame(
+  Total = total,
+  SE = se,
+  CV = cv_val,
+  Deff = deff_val,
+  IC_Lower = conf[, 1],  # Límite inferior del intervalo de confianza
+  IC_Upper = conf[, 2]   # Límite superior del intervalo de confianza
+)
+
+#Juntos
+# Extraer el total y el error estándar
+total <- coef(EstimTotalJuntos)  # Estimación del total
+se <- SE(EstimTotalJuntos)       # Error estándar
+
+# Extraer coeficiente de variación y diseño efectivo
+cv_val <- cv(EstimTotalJuntos)   # Coeficiente de variación
+deff_val <- deff(EstimTotalJuntos)  # Diseño efectivo
+
+# Extraer el intervalo de confianza
+conf <- confint(EstimTotalJuntos)  # Intervalo de confianza
+
+# Crear un data.frame con los resultados
+resultados_totalesJuntos <- data.frame(
+  Total = total,
+  SE = se,
+  CV = cv_val,
+  Deff = deff_val,
+  IC_Lower = conf[, 1],  # Límite inferior del intervalo de confianza
+  IC_Upper = conf[, 2] 
+)
+
+#Renombrar columnas
+
+colnames(resultados_totalesFdT) <- c(
+  "Total",
+  "Error Estándar (SE)",
+  "Coeficiente de Variación (CV)",
+  "Diseño Efectivo (Deff)",
+  "IC Inferior",
+  "IC Superior"
+)
+# Ver los resultados
+print(resultados_totalesFdT)
+
+colnames(resultados_totalesFIT) <- c(
+  "Total",
+  "Error Estándar (SE)",
+  "Coeficiente de Variación (CV)",
+  "Diseño Efectivo (Deff)",
+  "IC Inferior",
+  "IC Superior"
+)
+# Ver los resultados
+print(resultados_totalesFIT)
+
+colnames(resultados_totalesJuntos) <- c(
+  "Total",
+  "Error Estándar (SE)",
+  "Coeficiente de Variación (CV)",
+  "Diseño Efectivo (Deff)",
+  "IC Inferior",
+  "IC Superior"
+)
+# Ver los resultados
+print(resultados_totalesJuntos)
+
+```
+
+
+```{r}
+#Estimaciones de proporciones
+# FdT
+Proporcion_FdT <- survey :: svyratio(~FdT , ~Total, diseno, deff=TRUE )
+Proporcion_FdT
+df_ratio_FdT <- data.frame(Proporcion_FdT[[1]])
+df_SE_FdT    <- data.frame( sqrt(Proporcion_FdT[[2]]))
+CV_FdT       <- survey::cv(Proporcion_FdT)
+df_IC_FdT    <-data.frame(confint(Proporcion_FdT))
+
+df_proporcion_FdT <- cbind(df_ratio_FdT, df_SE_FdT,df_IC_FdT)
+
+df_proporcion_FdT$CV  <- 100*CV_FdT[1,1] 
+df_proporcion_FdT$deff  <- survey::deff(Proporcion_FdT) 
+colnames(df_proporcion_FdT) <- c("Proporción", "Error Estándar (SE)", "IC Inferior", "IC Superior", "Coeficiente de Variación (CV)", "Diseño Efectivo (Deff)")
+
+print(df_proporcion_FdT)
+
+# FIT
+Proporcion_FIT <- survey :: svyratio(~FIT , ~Total, diseno, deff=TRUE )
+Proporcion_FIT
+df_ratio_FIT <- data.frame(Proporcion_FIT[[1]])
+df_SE_FIT    <- data.frame( sqrt(Proporcion_FIT[[2]]))
+CV_FIT       <- survey::cv(Proporcion_FIT)
+df_IC_FIT    <-data.frame(confint(Proporcion_FIT))
+
+df_proporcion_FIT <- cbind(df_ratio_FIT, df_SE_FIT,df_IC_FIT)
+
+df_proporcion_FIT$CV  <- 100*CV_FIT[1,1] 
+df_proporcion_FIT$deff  <- survey::deff(Proporcion_FIT) 
+colnames(df_proporcion_FIT) <- c("Proporción", "Error Estándar (SE)", "IC Inferior", "IC Superior", "Coeficiente de Variación (CV)", "Diseño Efectivo (Deff)")
+
+print(df_proporcion_FIT)
+
+# Juntos
+Proporcion_Juntos <- survey :: svyratio(~Juntos , ~Total, diseno, deff=TRUE )
+Proporcion_Juntos
+df_ratio_Juntos <- data.frame(Proporcion_Juntos[[1]])
+df_SE_Juntos    <- data.frame( sqrt(Proporcion_Juntos[[2]]))
+CV_Juntos       <- survey::cv(Proporcion_Juntos)
+df_IC_Juntos    <-data.frame(confint(Proporcion_Juntos))
+
+df_proporcion_Juntos <- cbind(df_ratio_Juntos, df_SE_Juntos,df_IC_Juntos)
+
+df_proporcion_Juntos$CV  <- 100*CV_Juntos[1,1] 
+df_proporcion_Juntos$deff  <- survey::deff(Proporcion_Juntos) 
+colnames(df_proporcion_Juntos) <- c("Proporción", "Error Estándar (SE)", "IC Inferior", "IC Superior", "Coeficiente de Variación (CV)", "Diseño Efectivo (Deff)")
+
+print(df_proporcion_Juntos)
+
+```
+
+### ESTRATEGIA 2: Madow en cada estrato, con probabilidad de selección proporcional a la cantidad de mesas electorales del colegio, ordenando los estratos por jurisdicción, Sección y IdCircuito.
+
+```{r}
+#Datos para generar probabilidad de selección
+N_mesas<- tabla_votos_mesa %>% group_by(estrato,Distrito, IdSeccion,IdCircuito,Establecimiento) %>%
+ summarise(N_mesas = n())
+
+tabla_votos_establecimiento<-tabla_votos_establecimiento %>%
+  left_join(N_mesas, by = c("estrato", "Distrito","IdSeccion","IdCircuito", "Establecimiento"))
+
+tabla_votos_establecimiento<-merge(tabla_votos_establecimiento, tabla_estratos_final[, c("estrato", "n_prop", "TotalMesas")],by="estrato")
+
+# Genero probabilidad de seleccion de cada establecimiento
+tabla_votos_establecimiento$pi_i <- tabla_votos_establecimiento$n_prop*
+  tabla_votos_establecimiento$N_mesas/tabla_votos_establecimiento$TotalMesas
+
+# Controlo
+sum(tabla_votos_establecimiento$pi_i)  
+
+```
+
+```{r}
+# Ordenamos el marco de muestreo 
+
+tabla_votos_establecimiento <- tabla_votos_establecimiento[order(tabla_votos_establecimiento$estrato,
+                                                                 tabla_votos_establecimiento$Distrito,
+                                                                 tabla_votos_establecimiento$IdSeccion,
+                                                                 tabla_votos_establecimiento$IdCircuito),]
+
+
+```
+
+```{r}
+# Selecciono la muestra
+smplMadow = sampling::strata(tabla_votos_establecimiento, stratanames = c("estrato") , 
+                              size=tabla_estratos_final$n_prop , description=TRUE, 
+                              method = "systematic", pik=tabla_votos_establecimiento$pi_i)
+
+# Recupero datos del marco de muestreo
+muestra_2 <- sampling :: getdata(tabla_votos_establecimiento,smplMadow)
+
+```
+
+```{r}
+# Calculo el factor de expansion utilizando probabilidad de seleccion calculada 
+muestra_2$pondera <- 1/muestra_2$Prob
+```
+
+```{r}
+# Le indico a survey el diseno de muestra
+# pero supongo muestreo con reposicion (omito fpc)
+diseno2 <- survey :: svydesign(id=~1, strata=~estrato, 
+                              weights=~pondera,  data=muestra_2)
+diseno2
+```
+
+```{r}
+#Estimaciones de totales
+# FdT
+EstimTotalFdT2 <- survey :: svytotal(~FdT, diseno2, deff=TRUE, cv=TRUE )
+EstimTotalFdT2
+cv(EstimTotalFdT2)
+deff(EstimTotalFdT2)
+confint(EstimTotalFdT2)
+
+# FIT
+EstimTotalFIT2 <- survey :: svytotal(~FIT, diseno2, deff=TRUE, cv=TRUE )
+EstimTotalFIT2
+cv(EstimTotalFIT2)
+deff(EstimTotalFIT2)
+confint(EstimTotalFIT2)
+
+# Juntos
+EstimTotalJuntos2 <- survey :: svytotal(~Juntos, diseno2, deff=TRUE, cv=TRUE )
+EstimTotalJuntos2
+cv(EstimTotalJuntos2)
+deff(EstimTotalJuntos2)
+confint(EstimTotalJuntos2)
+
+```
+
+```{r}
+#Dataframe de totales
+#FdT
+# Extraer el total y el error estándar
+total <- coef(EstimTotalFdT2)  # Estimación del total
+se <- SE(EstimTotalFdT2)       # Error estándar
+
+# Extraer coeficiente de variación y diseño efectivo
+cv_val <- cv(EstimTotalFdT2)   # Coeficiente de variación
+deff_val <- deff(EstimTotalFdT2)  # Diseño efectivo
+
+# Extraer el intervalo de confianza
+conf <- confint(EstimTotalFdT2)  # Intervalo de confianza
+
+# Crear un data.frame con los resultados
+resultados_totalesFdT2 <- data.frame(
+  Total = total,
+  SE = se,
+  CV = cv_val,
+  Deff = deff_val,
+  IC_Lower = conf[, 1],  # Límite inferior del intervalo de confianza
+  IC_Upper = conf[, 2]   # Límite superior del intervalo de confianza
+)
+
+#FIT
+# Extraer el total y el error estándar
+total <- coef(EstimTotalFIT2)  # Estimación del total
+se <- SE(EstimTotalFIT2)       # Error estándar
+
+# Extraer coeficiente de variación y diseño efectivo
+cv_val <- cv(EstimTotalFIT2)   # Coeficiente de variación
+deff_val <- deff(EstimTotalFIT2)  # Diseño efectivo
+
+# Extraer el intervalo de confianza
+conf <- confint(EstimTotalFIT2)  # Intervalo de confianza
+
+# Crear un data.frame con los resultados
+resultados_totalesFIT2 <- data.frame(
+  Total = total,
+  SE = se,
+  CV = cv_val,
+  Deff = deff_val,
+  IC_Lower = conf[, 1],  # Límite inferior del intervalo de confianza
+  IC_Upper = conf[, 2]   # Límite superior del intervalo de confianza
+)
+
+#Juntos
+# Extraer el total y el error estándar
+total <- coef(EstimTotalJuntos2)  # Estimación del total
+se <- SE(EstimTotalJuntos2)       # Error estándar
+
+# Extraer coeficiente de variación y diseño efectivo
+cv_val <- cv(EstimTotalJuntos2)   # Coeficiente de variación
+deff_val <- deff(EstimTotalJuntos2)  # Diseño efectivo
+
+# Extraer el intervalo de confianza
+conf <- confint(EstimTotalJuntos2)  # Intervalo de confianza
+
+# Crear un data.frame con los resultados
+resultados_totalesJuntos2 <- data.frame(
+  Total = total,
+  SE = se,
+  CV = cv_val,
+  Deff = deff_val,
+  IC_Lower = conf[, 1],  # Límite inferior del intervalo de confianza
+  IC_Upper = conf[, 2]   # Límite superior del intervalo de confianza
+)
+
+
+#Renombrar columnas
+
+colnames(resultados_totalesFdT2) <- c(
+  "Total",
+  "Error Estándar (SE)",
+  "Coeficiente de Variación (CV)",
+  "Diseño Efectivo (Deff)",
+  "IC Inferior",
+  "IC Superior"
+)
+# Ver los resultados
+print(resultados_totalesFdT2)
+
+colnames(resultados_totalesFIT2) <- c(
+  "Total",
+  "Error Estándar (SE)",
+  "Coeficiente de Variación (CV)",
+  "Diseño Efectivo (Deff)",
+  "IC Inferior",
+  "IC Superior"
+)
+# Ver los resultados
+print(resultados_totalesFIT2)
+
+colnames(resultados_totalesJuntos2) <- c(
+  "Total",
+  "Error Estándar (SE)",
+  "Coeficiente de Variación (CV)",
+  "Diseño Efectivo (Deff)",
+  "IC Inferior",
+  "IC Superior"
+)
+# Ver los resultados
+print(resultados_totalesJuntos2)
+
+```
+
+```{r}
+#Estimaciones de proporciones
+# FdT
+Proporcion_FdT2 <- survey :: svyratio(~FdT , ~Total, diseno2, deff=TRUE )
+Proporcion_FdT2
+df_ratio_FdT2 <- data.frame(Proporcion_FdT2[[1]])
+df_SE_FdT2    <- data.frame( sqrt(Proporcion_FdT2[[2]]))
+CV_FdT2     <- survey::cv(Proporcion_FdT2)
+df_IC_FdT2    <-data.frame(confint(Proporcion_FdT2))
+
+df_proporcion_FdT2 <- cbind(df_ratio_FdT2, df_SE_FdT2,df_IC_FdT2)
+
+df_proporcion_FdT2$CV_FdT2  <- 100*CV_FdT2[1,1] 
+df_proporcion_FdT2$deff  <- survey::deff(Proporcion_FdT2) 
+colnames(df_proporcion_FdT2) <- c("Proporción", "Error Estándar (SE)", "IC Inferior", "IC Superior", "Coeficiente de Variación (CV)", "Diseño Efectivo (Deff)")
+
+print(df_proporcion_FdT2)
+
+# FIT
+Proporcion_FIT2 <- survey :: svyratio(~FIT , ~Total, diseno2, deff=TRUE )
+Proporcion_FIT2
+df_ratio_FIT2 <- data.frame(Proporcion_FIT2[[1]])
+df_SE_FIT2    <- data.frame( sqrt(Proporcion_FIT2[[2]]))
+CV_FIT2       <- survey::cv(Proporcion_FIT2)
+df_IC_FIT2    <-data.frame(confint(Proporcion_FIT2))
+
+df_proporcion_FIT2 <- cbind(df_ratio_FIT2, df_SE_FIT2,df_IC_FIT2)
+
+df_proporcion_FIT2$CV  <- 100*CV_FIT2[1,1] 
+df_proporcion_FIT2$deff  <- survey::deff(Proporcion_FIT2) 
+colnames(df_proporcion_FIT2) <- c("Proporción", "Error Estándar (SE)", "IC Inferior", "IC Superior", "Coeficiente de Variación (CV)", "Diseño Efectivo (Deff)")
+
+print(df_proporcion_FIT2)
+
+# Juntos
+Proporcion_Juntos2 <- survey :: svyratio(~Juntos , ~Total, diseno2, deff=TRUE )
+Proporcion_Juntos2
+df_ratio_Juntos2 <- data.frame(Proporcion_Juntos2[[1]])
+df_SE_Juntos2    <- data.frame( sqrt(Proporcion_Juntos2[[2]]))
+CV_Juntos2       <- survey::cv(Proporcion_Juntos2)
+df_IC_Juntos2    <-data.frame(confint(Proporcion_Juntos2))
+
+df_proporcion_Juntos2 <- cbind(df_ratio_Juntos2, df_SE_Juntos2,df_IC_Juntos2)
+
+df_proporcion_Juntos2$CV  <- 100*CV_Juntos2[1,1] 
+df_proporcion_Juntos2$deff  <- survey::deff(Proporcion_Juntos2) 
+colnames(df_proporcion_Juntos2) <- c("Proporción", "Error Estándar (SE)", "IC Inferior", "IC Superior", "Coeficiente de Variación (CV)", "Diseño Efectivo (Deff)")
+
+print(df_proporcion_Juntos2)
+
+```
+
+## 9. Presentar en un cuadro y gráfico los resultados
+
+```{r}
+
+#Unifico df de estimación de totales 1ra estrategia
+resultados_totales1 <- rbind(resultados_totalesFdT, resultados_totalesFIT, resultados_totalesJuntos)
+
+
+#Unifico df de estimación de totales 2da estrategia
+resultados_totales2 <- rbind(resultados_totalesFdT2, resultados_totalesFIT2, resultados_totalesJuntos)
+
+#Unifico ambos
+# Agregar una columna de identificación
+resultados_totales1$estrategia <- "MAS"
+resultados_totales2$estrategia <- "MADOW"
+resultados_totales <- rbind(resultados_totales1, resultados_totales2)
+library(tibble)
+resultados_totales <- rownames_to_column(resultados_totales, var = "Partido")
+
+#Unifico df de estimación de proporción 1ra estrategia
+df_proporcion1 <- rbind(df_proporcion_FdT, df_proporcion_FIT, df_proporcion_Juntos)
+
+#Unifico df de estimación de proporción 2da estrategia
+df_proporcion2 <- rbind(df_proporcion_FdT2, df_proporcion_FIT2, df_proporcion_Juntos2)
+
+#Unifico ambos
+df_proporcion1$estrategia <- "MAS"
+df_proporcion2$estrategia <- "MADOW"
+df_proporcion <- rbind(df_proporcion1, df_proporcion2)
+df_proporcion <- rownames_to_column(df_proporcion, var = "Partido")
+
+print(resultados_totales)
+print(df_proporcion)
+```
+```{r}
+# Crear el gráfico
+# Ordenar manualmente los partidos
+
+ggplot(resultados_totales, aes(x = Partido, y = Total)) +
+  geom_bar(stat = "identity", fill = "skyblue", width = 0.6) +  # Barras
+  geom_errorbar(aes(ymin = `IC Inferior`, ymax = `IC Superior`), width = 0.2) + 
+  scale_x_discrete(limits = c("FdT", "Juntos", "FIT", "FdT1", "Juntos1", "FIT1")) + 
+  labs(x = "Partido", y = "Total", title = "Totales y Intervalos de Confianza") +
+  theme_minimal()
+
+ggplot(df_proporcion, aes(x = Partido, y = Proporción)) +
+  geom_bar(stat = "identity", fill = "skyblue", width = 0.6) +  # Barras
+  geom_errorbar(aes(ymin = `IC Inferior`, ymax = `IC Superior`), width = 0.2) +
+  scale_x_discrete(limits = c("FdT", "Juntos", "FIT", "FdT1", "Juntos1", "FIT1"))+
+  labs(x = "Partido", y = "Proporción", title = "Proporciones e Intervalos de Confianza") +
+  theme_minimal()
+```
+```{r}
+ggplot(resultados_totales, aes(x = Partido, ymin = `IC Inferior`, ymax = `IC Superior`, color = Partido)) +
+  geom_errorbar(width = 0.4) +  # Líneas de error más gruesas
+  labs(x = "Partido", y = "Intervalo de Confianza", title = "Intervalos de Confianza de los Partidos") +
+  scale_x_discrete(limits = c("FdT", "Juntos", "FIT", "FdT1", "Juntos1", "FIT1"))+
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotar las etiquetas del eje X si es necesario
+
+ggplot(df_proporcion, aes(x = Partido, ymin = `IC Inferior`, ymax = `IC Superior`, color = Partido)) +
+  geom_errorbar(width = 0.4) +  # Líneas de error más gruesas
+  labs(x = "Partido", y = "Intervalo de Confianza", title = "Intervalos de Confianza de los Partidos") +
+  scale_x_discrete(limits = c("FdT", "Juntos", "FIT", "FdT1", "Juntos1", "FIT1")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotar las etiquetas del eje X si es necesario
+```
+
+## 10. Con alguna de las dos estrategias se puede determinar con un 95% de confianza quien sacó más votos?
+Comparación de intervalos:
+En la primera estrategia si bien las proporciones que sacaron los candidatos son diferentes los intervalos de confianza se superponen, es decir que el límite superior del frente de todos está dentro del intervalo de juntos por el cambio, por lo que no puede afirmarse que un partido sacó más votos que el otro. Por el contrario con la segunda estrategia de muestreo los IC no se solapan, el límite inferior de Juntos es mayor que el límite superior del frente de todos, de forma que podría afirmarse con un 95% de confianza que Juntos por el cambio sacó más votos en la elección.
+De igual manera el valor del DEFF en la segunda estrategia es menor demostrando que es una mejor opción para la selección de los casos al reducir la varianza de la estimación.
+
