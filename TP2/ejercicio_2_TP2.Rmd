@@ -93,14 +93,14 @@ tabla_datos<-tabla_datos %>%
 
 #s2 en cada estrato
 tabla_datos <- tabla_datos %>%
-  mutate(sh2= ph_hogares * (1 - ph_hogares) )
+  mutate(sh2= ph_hogares * (1 - ph_hogares))
 
 #varianza en estratos
 tabla_datos <- tabla_datos %>%
   mutate(varianza= wh2*sh2/hogares_encuestados)
 
 #varianza del estimador
-varianza_estimador=sum(tabla_datos$varianza)
+varianza_estimador=sum(tabla_datos$varianza) * sum(tabla_datos$hogares_marco)^2
 
 #desvío 
 ds=sqrt(varianza_estimador)
@@ -112,7 +112,7 @@ tabla_datos <- tabla_datos %>%
 
 #estimación del total de hogares pobres 
 estimacion_total_hogares <-  sum(tabla_datos$ph_wh2 * N)
-print(paste("Estimación total hogares pobres: ", estimacion_total_hogares))
+print(paste("Estimación total hogares pobres: ", round(estimacion_total_hogares)))
 
 #Intervalos de confianza 90%
 IC_infT <- estimacion_total_hogares - 1.64 * ds
@@ -124,17 +124,17 @@ print(paste("IC Superior Total hogares pobres: ", IC_supT))
 estimacion_proporcion_hogares <-  sum(tabla_datos$ph_wh2 * 100)
 print(paste("Estimación proporción hogares pobres: ", estimacion_proporcion_hogares))
 
-IC_infP <- estimacion_proporcion_hogares - 1.64 * ds
-IC_supP <- estimacion_proporcion_hogares + 1.64 * ds
-print(paste("IC Inferior Proporción hogares pobres: ", IC_infP))
-print(paste("IC Superior Proporción hogares pobres: ", IC_supP))
+IC_infP <- estimacion_proporcion_hogares/100 - 1.64 * ds/sum(hogares_marco)
+IC_supP <- estimacion_proporcion_hogares/100 + 1.64 * ds/sum(hogares_marco)
+print(paste("IC Inferior Proporción hogares pobres: ", IC_infP * 100))
+print(paste("IC Superior Proporción hogares pobres: ", IC_supP * 100))
 
 #CV
 
 CV_total <- ds / estimacion_total_hogares * 100 
 print(paste("CV del total: ", CV_total))
 
-CV_prop <- ds / sum(tabla_datos$ph_wh2) * 100 
+CV_prop <- (ds/sum(hogares_marco)) / sum(tabla_datos$ph_wh2) * 100 
 print(paste("CV de la proporción: ", CV_prop))
 
 #varianza en MAS (1-n/N)*s2/n (NO ME QUEDA CLARO SI DIVIDO POR n)
@@ -144,7 +144,7 @@ s2_total= p_total_hogares * (1 - p_total_hogares)
 var_MAS=(1-n/N)*s2_total/n
 
 #DEFF
-deff=varianza_estimador/var_MAS
+deff= (ds/sum(hogares_marco))^2/var_MAS 
 print(paste("DEFF: ", deff))
 
 ```
@@ -157,12 +157,23 @@ Porque la asignación de la cantidad de hogares seleccionado por estrato no se h
 ## 6. Estimar el total de personas pobres y la proporción de personas pobres (recordar que población pobre es la que habita en hogares pobres). Se puede con los datos disponibles estimar el CV y deff de estas estimaciones?
 
 ```{r}
+total_personas_pobres <- sum(tabla_datos$F_persona * tabla_datos$poblacion_pobre_encuestada)
+print(paste("Estimación total personas pobres: ", round(total_personas_pobres)))
 
+prop_personas_pobres <- sum(tabla_datos$F_persona * tabla_datos$poblacion_pobre_encuestada) / 
+                        sum(tabla_datos$F_persona * tabla_datos$poblacion_encuestada) 
+print(paste("Estimación proporcion personas pobres: ", prop_personas_pobres))
 ```
+Para calcular exactamente el CV y el deff de las estimaciones seria necesario conocer el total de
+personas en la poblacion
 
 ## 7. En base a los resultados de la encuesta, cómo debería haber sido la distribución de la muestra por zona si el objetivo era estimar el total de hogares pobres en la localidad? (obtener la asignación de Neyman)
 
 ```{r}
 
+nh = data.frame(Zona = tabla_datos$zona,
+                n_neyman = round(n * sqrt(tabla_datos$sh2) * tabla_datos$wh / sum(tabla_datos$wh * sqrt(tabla_datos$sh2))))
+
+nh
 ```
 
