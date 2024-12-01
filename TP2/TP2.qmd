@@ -2,20 +2,19 @@
 title: "TP 2 - Estratificacion Mesas Electorales Hogares"
 author: "Gomez Vargas Andrea, Iummato Luciana, Pesce Andrea Gisele"
 date: "`r Sys.Date()`"
-output:
-  pdf_document:
+format: 
+  html:
     toc: true
-    toc_depth: 1
-    number_sections: false
-  html_document:
-    theme: flatly
-    toc: yes
-    toc_float:
-      collapsed: true
-    df_print: kable
-header-includes:
-     \renewcommand{\contentsname}{Contenido}
+    html-math-method: katex
+  typst:
+    toc: true
+    toc-depth: 1
+  pdf:
+    toc: true
+    toc-depth: 1
+editor: visual
 ---
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
@@ -38,7 +37,6 @@ library(VIM)
 library(binom)
 library(openxlsx)
 library(DT)
-Sys.which("make") 
 library(stratification)
 
 options(scipen = 999)
