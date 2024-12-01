@@ -20,6 +20,12 @@ data <- data.frame(
   Unidad = 1:8,  # Unidades
   Y = c(18, 9, 10, 5, 6, 2, 4, 6)  # Valores de la variable Y
 )
+
+
+# Agrego fpc pues selecciono MAS en cada estrato
+data <-  data %>%
+  group_by(Estrato) %>%
+  mutate(fpc=n())
 ```
 
 
@@ -34,20 +40,26 @@ n <- c(1, 1, 3)  # Estrato 1: 1 unidad, Estrato 2: 1 unidad, Estrato 3: 3 unidad
 # Selección de la muestra estratificada
 set.seed(123)  # Para reproducibilidad
 
-options(survey.lonely.psu="fail")
+#options(survey.lonely.psu="fail")
 
-muestra <- strata(data, stratanames = "Estrato", size = n, method = "srswor")  # Sin reemplazo
+muestra <- sampling::strata(data = data, stratanames = "Estrato", size = n, method = "srswor")  # Sin reemplazo
 
 # Extraer las unidades seleccionadas
 muestra_seleccionada <- getdata(data, muestra)
 
 # Paso 3: Diseño de encuesta
+
+#La opcion adjust utiliza la media total para el calculo de varianza en el 
+#estrato con solo una observacion 
+options(survey.lonely.psu="adjust")
+
 # Crear un diseño estratificado con los pesos correctos
 design <- svydesign(
   ids = ~1,  # Las unidades seleccionadas no tienen subgrupos
   strata = ~Estrato,  # Estratos
   data = muestra_seleccionada,
-  weights = ~1 / Prob  # Pesos: inverso de la probabilidad de selección
+  weights = ~1 / Prob,  # Pesos: inverso de la probabilidad de selección
+  fpc = ~ fpc
 )
 
 # Paso 4: Cálculo de estimaciones
@@ -60,6 +72,5 @@ print(media_Y)
 cv_Y <- cv(media_Y)
 print("Coeficiente de variación (CV) de la media:")
 print(cv_Y)
-Sa
 ```
 
