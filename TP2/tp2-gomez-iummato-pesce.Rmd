@@ -17,6 +17,7 @@ header-includes:
      \renewcommand{\contentsname}{Contenido}
 ---
 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
   message = FALSE,    # No mostrar mensajes
@@ -38,14 +39,12 @@ library(VIM)
 library(binom)
 library(openxlsx)
 library(DT)
-Sys.which("make") 
 library(stratification)
-
+library(kableExtra)
 options(scipen = 999)
 ```
 
 \pagebreak
-
 
 # Ejercicio 1
 
@@ -63,12 +62,13 @@ glimpse(marco)
 marco$Agrupacion<-as.factor(marco$Agrupacion)
 ```
 
-
 ## 1. Qué cantidad mínima de variables identifica una mesa electoral? Y un colegio?
 
-    a. Mesa electoral: Distrito, sección, circuito, establecimiento y el propio código de la mesa
+```         
+a. Mesa electoral: Distrito, sección, circuito, establecimiento y el propio código de la mesa
 
-    b. Establecimiento: Distrito, sección, circuito, y el propio nombre del establecimiento
+b. Establecimiento: Distrito, sección, circuito, y el propio nombre del establecimiento
+```
 
 ## 2. Hallar la proporción de votos a diputados por cada uno de los cuatro agrupamientos de partidos (son 3 segun el enunciado inicial del TP:FdT, JxC y FIT)
 
@@ -122,8 +122,7 @@ proporciones
 
 ## 3. Tabular la cantidad de colegios electorales, mesas electorales y electores por Estrato
 
-6 estratos: CABA, Partidos del Gran Buenos Aires, Resto de Buenos Aires, 
-Región Pampeana (Córdoba, Santa Fé, La Pampa, Entre Ríos), NEA - NOA, Resto
+6 estratos: CABA, Partidos del Gran Buenos Aires, Resto de Buenos Aires, Región Pampeana (Córdoba, Santa Fé, La Pampa, Entre Ríos), NEA - NOA, Resto
 
 ```{r}
 #creación variable estratos
@@ -170,7 +169,6 @@ tabla_estratos_final <- tabla_estratos1 %>%
 
 tabla_estratos_final
 ```
-
 
 ## 4. Construir a partir del archivo dado una tabla de mesas electorales (lo necesitaremos más adelante),cada una con el total de votos a cada partido, el total de votos positivos y las variables de identificación.
 
@@ -264,12 +262,11 @@ ggplot(totales_long, aes(x = Partido, y = Porcentaje, fill = Partido)) +
   theme(legend.position = "none")
 ```
 
-
 ## 7. Seleccionar con sampling una muestra de colegios con cada estrategia
 
 ### Estrategia 1 con MAS
 
-```{r} 
+```{r}
 
 # Cantidad de estratos 
 H=6
@@ -280,7 +277,6 @@ N=sum(tabla_estratos_final$Establecimientos)
 
 ```
 
-
 ```{r}
 #Creo variables para ponderar la muestra en mi marco
 tabla_estratos_final<-tabla_estratos_final %>% 
@@ -289,7 +285,6 @@ tabla_estratos_final<-tabla_estratos_final %>%
 # Control
 sum(tabla_estratos_final$n_prop)
 ```
-
 
 ```{r}
 #Agrego fpc a marco muestral (establecimientos por estrato?)
@@ -322,7 +317,6 @@ muestra_casos <- sampling::getdata(tabla_votos_establecimiento,smplMAS)
 # Calculo el factor de expansion utilizando probabilidad de seleccion calculada 
 muestra_casos$pondera <- 1/muestra_casos$Prob
 ```
-
 
 ## 8. Calcular con survey las estimaciones pedidas, junto a sus CV, IC(90%) y deff.
 
@@ -360,8 +354,6 @@ deff(EstimTotalJuntos)
 confint(EstimTotalFdT)
 
 ```
-
-
 
 ```{r}
 #Dataframe de totales
@@ -469,7 +461,6 @@ resultados_totalesJuntos
 
 ```
 
-
 ```{r}
 #Estimaciones de proporciones
 # FdT
@@ -522,8 +513,7 @@ df_proporcion_Juntos
 
 ```
 
-
-### ESTRATEGIA 2: Madow en cada estrato, con probabilidad de selección proporcional a la cantidad de mesas electorales del colegio, ordenando los estratos por jurisdicción, Sección y IdCircuito.
+### Estrategia 2: Madow en cada estrato, con probabilidad de selección proporcional a la cantidad de mesas electorales del colegio, ordenando los estratos por jurisdicción, Sección y IdCircuito.
 
 ```{r}
 #Datos para generar probabilidad de selección
@@ -706,7 +696,7 @@ colnames(resultados_totalesJuntos2) <- c(
   "IC Superior"
 )
 # Ver los resultados
-print(resultados_totalesJuntos2)
+kable(resultados_totalesJuntos2)
 
 ```
 
@@ -762,7 +752,6 @@ print(df_proporcion_Juntos2)
 
 ```
 
-
 ## 9. Presentar en un cuadro y gráfico los resultados
 
 ```{r}
@@ -798,7 +787,6 @@ print(resultados_totales)
 print(df_proporcion)
 ```
 
-
 ```{r}
 # Crear el gráfico
 # Ordenar manualmente los partidos
@@ -817,6 +805,7 @@ ggplot(df_proporcion, aes(x = Partido, y = Proporción)) +
   labs(x = "Partido", y = "Proporción", title = "Proporciones e Intervalos de Confianza") +
   theme_minimal()
 ```
+
 ```{r}
 ggplot(resultados_totales, aes(x = Partido, ymin = `IC Inferior`, ymax = `IC Superior`, color = Partido)) +
   geom_errorbar(linewidth = 1.5, width = 0.4) +  # Líneas de error más gruesas
@@ -843,8 +832,6 @@ En la primera estrategia si bien las proporciones que sacaron los candidatos son
 
 De igual manera el valor del DEFF en la segunda estrategia es menor demostrando que es una mejor opción para la selección de los casos al reducir la varianza de la estimación.
 
-
-
 # Ejercicio 2
 
 
@@ -864,7 +851,7 @@ tabla_datos<-as.data.frame(cbind(zona,hogares_marco,hogares_encuestados,hogares_
 tabla_datos <- tabla_datos %>%
   mutate(across(-1, as.numeric))
 
-tabla_datos
+print(tabla_datos)
 ```
 
 
@@ -886,12 +873,13 @@ print(tabla_datos[, c("zona", "ph_hogares","ph_poblacion")])
 tabla_datos<-tabla_datos %>% 
   mutate(F_hogar=hogares_marco/hogares_encuestados,
          F_persona=hogares_marco/hogares_encuestados)
-tabla_datos
+
 ```
 
 Como todas las personas del hogar son encuestadas, la probabilidad de selección de una persona es igual a la del hogar y por tanto el factor de expansión, que es la inversa de la probabilidad de selección, también lo será.
 
 ## 3. Las tres zonas presentan un perfil diferencial en términos de pobreza?
+
 Si se observan las estimaciones muestrales puede observarse que la zona B presenta una proporción de hogares pobres mucho mayor que los demás estratos, lo mismo sucede con la proporción de las personas pobres. Sin embargo, para afirmar que existen diferencias entre los estratos hay que analizar los intervalos de confianza para cada estimación, si los mismos no se solapan puede afirmarse, con el nivel de confianza definido, que las estimaciones de pobreza difieren entre los estratos, pudiendo determinarse el estrato con mayor y menor pobreza. Dicho procedimiento se realiza en el punto n°4.
 
 ## 4. Estimar, con la muestra seleccionada, el total de hogares pobres y la proporción de hogares pobres, el CV y deff correspondientes. Dar un IC(90%) para cada estimación.
@@ -914,14 +902,14 @@ tabla_datos<-tabla_datos %>%
 
 #s2 en cada estrato
 tabla_datos <- tabla_datos %>%
-  mutate(sh2= ph_hogares * (1 - ph_hogares) )
+  mutate(sh2= ph_hogares * (1 - ph_hogares))
 
 #varianza en estratos
 tabla_datos <- tabla_datos %>%
   mutate(varianza= wh2*sh2/hogares_encuestados)
 
 #varianza del estimador
-varianza_estimador=sum(tabla_datos$varianza)
+varianza_estimador=sum(tabla_datos$varianza) * sum(tabla_datos$hogares_marco)^2
 
 #desvío 
 ds=sqrt(varianza_estimador)
@@ -933,7 +921,7 @@ tabla_datos <- tabla_datos %>%
 
 #estimación del total de hogares pobres 
 estimacion_total_hogares <-  sum(tabla_datos$ph_wh2 * N)
-print(paste("Estimación total hogares pobres: ", estimacion_total_hogares))
+print(paste("Estimación total hogares pobres: ", round(estimacion_total_hogares)))
 
 #Intervalos de confianza 90%
 IC_infT <- estimacion_total_hogares - 1.64 * ds
@@ -945,17 +933,17 @@ print(paste("IC Superior Total hogares pobres: ", IC_supT))
 estimacion_proporcion_hogares <-  sum(tabla_datos$ph_wh2 * 100)
 print(paste("Estimación proporción hogares pobres: ", estimacion_proporcion_hogares))
 
-IC_infP <- estimacion_proporcion_hogares - 1.64 * ds
-IC_supP <- estimacion_proporcion_hogares + 1.64 * ds
-print(paste("IC Inferior Proporción hogares pobres: ", IC_infP))
-print(paste("IC Superior Proporción hogares pobres: ", IC_supP))
+IC_infP <- estimacion_proporcion_hogares/100 - 1.64 * ds/sum(hogares_marco)
+IC_supP <- estimacion_proporcion_hogares/100 + 1.64 * ds/sum(hogares_marco)
+print(paste("IC Inferior Proporción hogares pobres: ", IC_infP * 100))
+print(paste("IC Superior Proporción hogares pobres: ", IC_supP * 100))
 
 #CV
 
 CV_total <- ds / estimacion_total_hogares * 100 
 print(paste("CV del total: ", CV_total))
 
-CV_prop <- ds / sum(tabla_datos$ph_wh2) * 100 
+CV_prop <- (ds/sum(hogares_marco)) / sum(tabla_datos$ph_wh2) * 100 
 print(paste("CV de la proporción: ", CV_prop))
 
 #varianza en MAS (1-n/N)*s2/n (NO ME QUEDA CLARO SI DIVIDO POR n)
@@ -965,7 +953,7 @@ s2_total= p_total_hogares * (1 - p_total_hogares)
 var_MAS=(1-n/N)*s2_total/n
 
 #DEFF
-deff=varianza_estimador/var_MAS
+deff= (ds/sum(hogares_marco))^2/var_MAS 
 print(paste("DEFF: ", deff))
 
 ```
@@ -978,16 +966,35 @@ Porque la asignación de la cantidad de hogares seleccionado por estrato no se h
 ## 6. Estimar el total de personas pobres y la proporción de personas pobres (recordar que población pobre es la que habita en hogares pobres). Se puede con los datos disponibles estimar el CV y deff de estas estimaciones?
 
 ```{r}
+total_personas_pobres <- sum(tabla_datos$F_persona * tabla_datos$poblacion_pobre_encuestada)
+print(paste("Estimación total personas pobres: ", round(total_personas_pobres)))
 
+prop_personas_pobres <- sum(tabla_datos$F_persona * tabla_datos$poblacion_pobre_encuestada) / 
+                        sum(tabla_datos$F_persona * tabla_datos$poblacion_encuestada) 
+print(paste("Estimación proporcion personas pobres: ", prop_personas_pobres))
 ```
+
+No se puede estimar el cv y el DEFF ya que los datos disponibles en el marco muestral refieren a la distribución de hogares por estrato, no conocemos la distribución real de la población pobre entre los estratos para calcular el peso de la población pobre (wh) en el marco muestral, y de esa manera no podemos calcular la varianza del estimador y con ello el CV y el deff que toman este insumo para su cálculo 
+
 
 ## 7. En base a los resultados de la encuesta, cómo debería haber sido la distribución de la muestra por zona si el objetivo era estimar el total de hogares pobres en la localidad? (obtener la asignación de Neyman)
 
 ```{r}
+#creación de Sh
 
+tabla_datos <- tabla_datos %>%
+  mutate(Sh= sqrt(sh2))
+
+#creación de Nh*Sh
+tabla_datos <- tabla_datos %>%
+  mutate(Nh_Sh= hogares_marco*Sh)
+
+#creación de hogares seleccionados
+tabla_datos <- tabla_datos %>%
+  mutate(nh_nuevo= round(n*Nh_Sh/sum(Nh_Sh)))
+
+print(tabla_datos[, c("zona", "hogares_marco","nh_nuevo")])
 ```
-
-
 
 
 # Ejercicio 3
@@ -1001,7 +1008,6 @@ data <- data.frame(
   Y = c(18, 9, 10, 5, 6, 2, 4, 6)  # Valores de la variable Y
 )
 ```
-
 
 ## Paso 1: Agrego fpc pues selecciono MAS en cada estrato
 
@@ -1045,7 +1051,7 @@ design <- svydesign(
   ids = ~1,  # Las unidades seleccionadas no tienen subgrupos
   strata = ~Estrato,  # Estratos
   data = muestra_seleccionada,
-  weights = ~1 / Prob,  # Pesos: inverso de la probabilidad de selección
+  Prob = ~Prob,  # Pesos: inverso de la probabilidad de selección
   fpc = ~ fpc
 )
 
@@ -1066,16 +1072,12 @@ print("Coeficiente de variación (CV) de la media:")
 print(cv_Y)
 ```
 
-
 # Ejercicio 4
-
-
 
 ```{r}
 Deptos2022 <- read_excel("data/tabla_deptos_2022.xlsx")
 
 ```
-
 
 ### 1. Estratificación, tamaño de muestra y asignación 
 
@@ -1098,6 +1100,7 @@ El comando strata.LH nos da los puntos de corte que definen los estratos y el ta
 ```{r puntos de corte}
 Estratificacion$bh
 ```
+
 De esta manera, los estratos quedaron conformados de la siguiente manera: 
 Estrato 1: Y ≤ 33465
 Estrato 2: 33465 < Y ≤ 128840.5
@@ -1147,19 +1150,20 @@ resumen
 ```
 
 
-### Seleccionamos una muestra con sampling (MAS en cada estrato)
+### 3. Seleccionamos una muestra con sampling (MAS en cada estrato)
 
 Realizaremos una muestra aleatoria simple sin reemplazo
 
 ```{r MAS}
 
-Deptos2022$nh <- rep(resumen$nh, times = table(Deptos2022$estrato))
-
 nh <- c(4, 11, 20, 13)
 
+Deptos2022 <- Deptos2022[order(Deptos2022$estrato), ]
+
+set.seed(1234)
 s <- sampling::strata(Deptos2022,
                       stratanames = "estrato", 
-            size = Deptos2022$nh, method = "srswor")
+            size = nh, method = "srswor")
 
 head(s) 
 
@@ -1167,34 +1171,42 @@ head(s)
 
 ```{r unidades}
 # Extrae las unidades seleccionadas
-smuestra <- Deptos2022[s$ID_unit, ]
+smuestra <- sampling::getdata(Deptos2022, s)
 
 # Verifica la composición de la muestra por estrato
 table(smuestra$estrato)
+
+resumen
+
+smuestra <- merge(smuestra, resumen, "estrato")
+smuestra$fpc = smuestra$Nh
+
 ```
 
 
-El resultado de la tabla muestra que el número de unidades seleccionadas por estrato es el mismo para todos los estratos, siendo 4.
 
 
-### Declarar el diseño de muestreo con survey
+### 4. Declarar el diseño de muestreo con survey
 
 ```{r diseño}
+
 diseno <- svydesign(ids = ~1,  
                    strata = ~estrato, 
-                   weights = ~nh, 
-                   data = Deptos2022)  
+                   probs = ~Prob, 
+                   data = smuestra,
+                   fpc = ~fpc)  
 ```
 
-### Estimaremos el total de Y, con el correspondiente CV y deff.
+### 5. Estimaremos el total de Y, con el correspondiente CV y deff.
 
 Calculamos primero total de Y con la función de survey
 
 ```{r TotalY}
-total_Y <- svytotal(~Y, design = diseno)
+total_Y <- svytotal(~Y, design = diseno, deff = T)
 total_Y
 ```
-La estimación del total de Y en la población es 359925777 y la varianza asociada 28067998
+
+La estimación del total de Y en la población es 43013745 y el desvio estandar 1635740
 
 
 ```{r verificacion de CV }
@@ -1202,33 +1214,14 @@ La estimación del total de Y en la población es 359925777 y la varianza asocia
 #Calculamos el CV y el intervalo de confianza
 cv(total_Y)
 confint(total_Y)
-
+sum(Deptos2022$Y) >= confint(total_Y)[1] & sum(Deptos2022$Y) <= confint(total_Y)[2]
 ```
 
+El CV es 3.8%, lo cual es menor al 5% definido por diseño para el calculo del tamaño de muestra y cortes optimos de los estratos.
 
-El CV es 7.8%, lo cual es mayor al 5% que esperabamos, lo cual implica que la estimación tiene una mayor incertidumbre a la esperada.
+Con un 95% de confianza, el total de Y en la población se encuentra entre 39807754 y 46219736. El intervalo contiene al verdadero valor del parametro. 
 
-Con un 95% de confianza, el total de Y en la población se encuentra entre 304913511 y 414938043.
-
-Finalmente sacamos el deff
-
-```{r deff}
-
-smuestra$ID_unit <- 1:nrow(smuestra)
-smuestra$peso <- 1
-
-# Definir el diseño muestral
-diseno <- svydesign(ids = ~ID_unit, strata = ~estrato, data = smuestra, weights = ~peso )
-
-deff_value <- svymean(~Y, diseno, deff = TRUE)
-deff_value
-
-total_Y <- svytotal(~Y, design = diseno, deff = TRUE)
-total_Y
-
-```
+Finalmente el deff es 0.0267, por lo que el diseño resulta mas eficiente que seleccionar un MAS sobre todo el marco sin estratificar.
 
 
-El valor Inf (infinito) en el DEFF indica que el diseño no tiene suficiente variabilidad o estructura para calcular un efecto de diseño real.
 
-Dado que es un MAS o tal vez no hay tiene suficientes estratos o variabilidad entre ellos, el DEFF puede ser infinito. 

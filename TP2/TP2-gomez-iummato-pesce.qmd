@@ -511,7 +511,7 @@ df_proporcion_Juntos
 
 ```
 
-### ESTRATEGIA 2: Madow en cada estrato, con probabilidad de selección proporcional a la cantidad de mesas electorales del colegio, ordenando los estratos por jurisdicción, Sección y IdCircuito.
+### Estrategia 2: Madow en cada estrato, con probabilidad de selección proporcional a la cantidad de mesas electorales del colegio, ordenando los estratos por jurisdicción, Sección y IdCircuito.
 
 ```{r}
 #Datos para generar probabilidad de selección
@@ -965,28 +965,12 @@ Porque la asignación de la cantidad de hogares seleccionado por estrato no se h
 
 ```{r}
 
-#probabilidad en estrato
-tabla_datos <- tabla_datos %>%
-  mutate(ph_poblacion_wh= ph_poblacion * wh)
+total_personas_pobres <- sum(tabla_datos$F_persona * tabla_datos$poblacion_pobre_encuestada)
+print(paste("Estimación total personas pobres: ", round(total_personas_pobres)))
 
-#estimación del total de hogares pobres 
-estimacion_total_pobacion <-  sum(tabla_datos$ph_poblacion_wh * N)
-print(paste("Estimación total población pobre: ", estimacion_total_pobacion))
-
-#Intervalos de confianza 90%
-IC_infT <- estimacion_total_pobacion - 1.64 * ds
-IC_supT <- estimacion_total_pobacion + 1.64 * ds
-print(paste("IC Inferior Total hogares pobres: ", IC_infT))
-print(paste("IC Superior Total hogares pobres: ", IC_supT))
-
-#estimación de la proporción de hogares pobres 
-estimacion_proporcion_poblacion <-  sum(tabla_datos$ph_poblacion_wh * 100)
-print(paste("Estimación proporción población pobre: ", estimacion_proporcion_poblacion))
-
-IC_infP <- estimacion_proporcion_poblacion - 1.64 * ds
-IC_supP <- estimacion_proporcion_poblacion + 1.64 * ds
-print(paste("IC Inferior proporción población pobre: ", IC_infP))
-print(paste("IC Superior proporción población pobre: ", IC_supP))
+prop_personas_pobres <- sum(tabla_datos$F_persona * tabla_datos$poblacion_pobre_encuestada) / 
+                        sum(tabla_datos$F_persona * tabla_datos$poblacion_encuestada) 
+print(paste("Estimación proporcion personas pobres: ", prop_personas_pobres))
 ```
 
 No se puede estimar el cv y el DEFF ya que los datos disponibles en el marco muestral refieren a la distribución de hogares por estrato, no conocemos la distribución real de la población pobre entre los estratos para calcular el peso de la población pobre (wh) en el marco muestral, y de esa manera no podemos calcular la varianza del estimador y con ello el CV y el deff que toman este insumo para su cálculo 
@@ -1066,7 +1050,7 @@ design <- svydesign(
   ids = ~1,  # Las unidades seleccionadas no tienen subgrupos
   strata = ~Estrato,  # Estratos
   data = muestra_seleccionada,
-  weights = ~1 / Prob,  # Pesos: inverso de la probabilidad de selección
+  Prob = ~Prob,  # Pesos: inverso de la probabilidad de selección
   fpc = ~ fpc
 )
 
@@ -1093,4 +1077,153 @@ print(cv_Y)
 Deptos2022 <- read_excel("data/tabla_deptos_2022.xlsx")
 
 ```
+
+### 1. Estratificación, tamaño de muestra y asignación 
+
+Utilizaremos el comando strata.LH del paquete stratification para conseguir la ‘mejor’ estratificación, tamaño de muestra y asignación, indicando un alloc = c(0.5,0.5,0)).
+
+```{r estratificación}
+
+Estratificacion <- strata.LH(
+  x = Deptos2022$Y,   # Variable de estratificación
+  CV = 0.05,          # CV
+  Ls = 4,             # Estratos
+  alloc = c(0.5, 0.5, 0),  # Asignación óptima
+  algo = "Kozak"      
+)
+```
+
+
+El comando strata.LH nos da los puntos de corte que definen los estratos y el tamaño de muestra en cada uno. 
+
+```{r puntos de corte}
+Estratificacion$bh
+```
+
+De esta manera, los estratos quedaron conformados de la siguiente manera: 
+Estrato 1: Y ≤ 33465
+Estrato 2: 33465 < Y ≤ 128840.5
+Estrato 3: 128840.5 < Y ≤ 453186
+Estrato 4: Y > 453186
+
+```{r tamaño de la muestra}
+Estratificacion$nh
+```
+El comando selecciona entonces 4 unidades del Estrato 1, 11 unidades del Estrato 2, 20 unidades del Estrato 3 y 13 unidades del Estrato 4.  
+
+
+### 2. Nh y nh de cada estrato
+
+El nh lo obtuvimos en el ejercicio anterior. Ahora sacaremos el Nh, es decir, el tamaño poblacional de cada estrato. 
+Este valor indica cuántas unidades pertenecen a cada estrato en el marco poblacional. Lo obtienes sumando las unidades dentro de cada estrato una vez los cortes están definidos.
+
+```{r NH1}
+table(cut(Deptos2022$Y, breaks = c(-Inf, Estratificacion$bh, Inf)))
+
+```
+
+Los resultados son:
+Nh para el Estrato 1: 271 
+Nh para el Estrato 2: 162
+Nh para el Estrato 3: 78
+Nh para el Estrato 4: 16
+
+```{r NH2}
+
+#Creamos la columna de estrato en Deptos2022
+Deptos2022 <- Deptos2022 %>%
+ mutate(estrato = cut(
+    Y,
+    breaks = c(-Inf, Estratificacion$bh, Inf),  
+    labels = 1:(length(Estratificacion$bh) + 1),  
+    include.lowest = TRUE
+  ))
+  
+#Sumamos Nh y nh
+resumen <- Deptos2022 %>%
+  group_by(estrato) %>%
+  summarise(Nh = n()) %>%
+  mutate(nh = Estratificacion$nh)
+
+resumen
+```
+
+
+### 3. Seleccionamos una muestra con sampling (MAS en cada estrato)
+
+Realizaremos una muestra aleatoria simple sin reemplazo
+
+```{r MAS}
+
+nh <- c(4, 11, 20, 13)
+
+Deptos2022 <- Deptos2022[order(Deptos2022$estrato), ]
+
+set.seed(1234)
+s <- sampling::strata(Deptos2022,
+                      stratanames = "estrato", 
+            size = nh, method = "srswor")
+
+head(s) 
+
+```
+
+```{r unidades}
+# Extrae las unidades seleccionadas
+smuestra <- sampling::getdata(Deptos2022, s)
+
+# Verifica la composición de la muestra por estrato
+table(smuestra$estrato)
+
+resumen
+
+smuestra <- merge(smuestra, resumen, "estrato")
+smuestra$fpc = smuestra$Nh
+
+```
+
+
+
+
+### 4. Declarar el diseño de muestreo con survey
+
+```{r diseño}
+
+diseno <- svydesign(ids = ~1,  
+                   strata = ~estrato, 
+                   probs = ~Prob, 
+                   data = smuestra,
+                   fpc = ~fpc)  
+```
+
+### 5. Estimaremos el total de Y, con el correspondiente CV y deff.
+
+Calculamos primero total de Y con la función de survey
+
+```{r TotalY}
+total_Y <- svytotal(~Y, design = diseno, deff = T)
+total_Y
+```
+
+La estimación del total de Y en la población es 43013745 y el desvio estandar 1635740
+
+
+```{r verificacion de CV }
+
+#Calculamos el CV y el intervalo de confianza
+cv(total_Y)
+confint(total_Y)
+sum(Deptos2022$Y) >= confint(total_Y)[1] & sum(Deptos2022$Y) <= confint(total_Y)[2]
+```
+
+El CV es 3.8%, lo cual es menor al 5% definido por diseño para el calculo del tamaño de muestra y cortes optimos de los estratos.
+
+Con un 95% de confianza, el total de Y en la población se encuentra entre 39807754 y 46219736. El intervalo contiene al verdadero valor del parametro. 
+
+Finalmente el deff es 0.0267, por lo que el diseño resulta mas eficiente que seleccionar un MAS sobre todo el marco sin estratificar.
+
+
+
+
+
 
