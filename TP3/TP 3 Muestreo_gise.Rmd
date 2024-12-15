@@ -1,0 +1,583 @@
+---
+title: "TP 3 - Muestreo"
+author: "Pesce"
+date: "2024-12-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#**Ejercicio 1**
+
+Elegiremos avanzar con el ejericicio 1A, a realizar con la base de votos de Octubre 2023, trabajando con voto a presidente, en el cual compararemos el efecto del tamaño de muestra en cada etapa en el CV. 
+
+##**Ejercicio 1A**
+El conjunto de mesas electorales de la elección Octubre 2023 será nuestro universo bajo estudio.
+
+Se desea estimar el total de votos a Unión por la Patria, Juntos por el Cambio, La Libertad Avanza y FIT a Presidente y Vice a nivel nacional y proporción de votos respecto al total de votos positivos mediante una muestra aleatoria de mesas electorales.
+
+Se compararán dos diseños, ambos bietápicos; con los circuitos electorales como Unidades de Primera Etapa (UPEs) y las mesas electorales como Unidades de Segunda Etapa (USEs).
+
+##**Diseño A - Primer etapa de selección**
+
+```{r librerias}
+library(tidyverse)
+library(survey)
+library(readxl)
+library(sampling)
+install.packages("VIM")
+library(VIM)
+#install.packages("binom")
+library(binom)
+library(readr)
+#install.packages("DT")
+library(DT)
+library(stratification)
+#install.packages("kableExtra")
+library(kableExtra)
+```
+
+```{r importo datos}
+Resultados_Octubre_2023_PRESIDENCIALES <- read_csv("C:/Users/Gisele/Desktop/Resultados_Octubre_2023_PRESIDENCIALES.csv")
+
+glimpse(Resultados_Octubre_2023_PRESIDENCIALES)
+
+```
+
+Filtramos los datos para el cargo de "PRESIDENTE Y VICE" y creamos un marco de muestreo por estrato
+
+```{r estratos}
+
+#Filtramos los datos para el cargo "PRESIDENTE Y VICE"
+presidenciales <- Resultados_Octubre_2023_PRESIDENCIALES %>%
+  filter(cargo_nombre == "PRESIDENTE Y VICE")
+  
+# Agrupamos los datos por distrito para conocer el número de mesas en cada estrato
+mesas_por_estrato <- presidenciales %>%
+  group_by(distrito_nombre) %>%
+  summarise(mesas_totales = n_distinct(mesa_id))
+
+
+mesas_por_estrato
+```
+
+Estratificamos el marco de muestreo en estas zonas:CABA, Partidos del Conurbano Bonaerense, Resto de Buenos Aires, Región Pampeana (Córdoba, Santa Fé, La Pampa, Entre Ríos), NEA - NOA, Resto
+
+```{r ver secccion para estrato} 
+#Primero, dado que los distritos no tienen diferenciado el conurbano del resto de la Provincia, filtramos las secciones en las cuales el distrito es Buenos Aires.
+
+#Filtrar los datos para el distrito "Buenos Aires" y luego ver los valores únicos de seccion_nombre
+
+unique(presidenciales %>% 
+         filter(distrito_nombre == "Buenos Aires") %>% 
+         pull(seccion_nombre))
+
+```
+
+```{r conurbano}
+
+conurbano_bonaerense <- c("La Matanza", "Lomas de Zamora", "Quilmes", "Avellaneda", "Morón", "Tres de Febrero", 
+                          "Lanús", "Almirante Brown", "San Fernando", "San Isidro", "San Miguel", 
+                          "Florencio Varela", "Berazategui", "Hurlingham", "Ituzaingó", "Moreno", 
+                          "Merlo", "Tigre", "Varela", "Almirante Brown", "San Vicente", "La Plata", "Vicente López")
+```
+
+
+```{r estratificación}
+
+# Estratificación y modificación de la columna 'estrato' 
+presidenciales <- presidenciales %>%
+  mutate(estrato = case_when(
+    distrito_nombre == "Ciudad Autónoma de Buenos Aires" ~ "CABA",
+    distrito_nombre == "Buenos Aires" & seccion_nombre %in% conurbano_bonaerense ~ "Partidos del Conurbano Bonaerense", 
+    distrito_nombre == "Buenos Aires" & !(seccion_nombre %in% conurbano_bonaerense) ~ "Resto de Buenos Aires",
+    distrito_nombre %in% c("Córdoba", "Santa Fe", "La Pampa", "Entre Ríos") ~ "Región Pampeana",
+    distrito_nombre %in% c("Chaco", "Jujuy", "Salta", "Tucumán", "Misiones", "Formosa", "Santiago del Estero", "Catamarca", "Corrientes") ~ "NEA - NOA",  
+    TRUE ~ "Resto"
+  ))
+
+
+table(presidenciales$estrato)
+
+```
+  
+###Asignación de la muestra por estrato en forma proporcional  
+
+El ejercicio indica una Muestral aleatoria, estratificada, de 80 UPEs, estratificando el marco de muestreo en estas zonas: CABA, Partidos del Conurbano Bonaerense, Resto de Buenos Aires
+Región Pampeana (Córdoba, Santa Fé, La Pampa, Entre Ríos), NEA - NOA, Resto.
+
+Para poder realizar la asignacion de la muestra debemos, calcular el total de mesas electorales en cada estrato, calcular la proporción de mesas de cada estrato sobre el total de mesas y asignar la cantidad de UPEs a cada estrato proporcionalmente.
+
+``` {r asignación}
+
+# Calculamos el total de mesas por estrato
+mesas_por_estrato <- presidenciales %>%
+  group_by(estrato) %>%
+  summarise(total_mesas = sum(mesa_electores, na.rm = TRUE))
+
+mesas_por_estrato
+
+# Calculamos la proporción de mesas por estrato
+total_mesas_totales <- sum(mesas_por_estrato$total_mesas)
+
+mesas_por_estrato <- mesas_por_estrato %>%
+  mutate(proporcion_mesas = total_mesas / total_mesas_totales)
+
+
+mesas_por_estrato
+
+#Asignamos el número de UPEs de manera proporcional (80 UPEs en total)
+total_UPEs <- 80
+
+mesas_por_estrato <- mesas_por_estrato %>%
+  mutate(UPE_asignadas = round(proporcion_mesas * total_UPEs))
+
+
+mesas_por_estrato
+```
+Se asignaron 6 UPE a CABA, 17 a NEA-NOA, 16 a Partidos del Conurbano Bonaeresme, 17 a Region Pampeana, 11 a Resto y 13 a Resto de Buenos Aires.  
+
+
+### Selección de circuitos en cada estrato mediante MAS
+
+Para realizar un MAS, debemos primero filtrar los datos por estrato y seleccionar de manera aleatoria los circuitos según la cantidad de UPEs asignadas.
+
+
+Primero agregamos la columna UPE_asignadas a la tabla presidenciales
+
+```{r upes}
+presidenciales <- presidenciales %>%
+  left_join(mesas_por_estrato %>% select(estrato, UPE_asignadas), by = "estrato")
+
+glimpse(presidenciales)
+```
+```{r verificaciones}
+str(presidenciales$UPE_asignadas)  # Comprobar el tipo de datos de la columna UPE_asignadas
+head(presidenciales$UPE_asignadas)  # Verificar los primeros valores
+summary(presidenciales$UPE_asignadas)  # Ver resumen de la columna
+```
+```{r verificaciones}
+presidenciales %>%
+  filter(is.na(UPE_asignadas))  # Ver filas con UPE_asignadas NA
+```
+
+Con esto sabemos que la columna UPE_asignadas es numérica, que su valor mínimo es 6, el valor máximo es 17 y el promedio es 14.53, lo cual sugiere que los valores de la columna son consistentes con los resultados esperados en la asignación proporcional.
+Asimismo, no hay valores faltantes en la columna UPE_asignadas.
+
+Procederemos ahora a seleccionar las UPEs de manera aleatoria en cada estrato mediante Muestreo Aleatorio Simple (MAS)
+
+```{r mas}
+
+set.seed(123)  # Para reproducibilidad
+
+# Primero, creamos una función que pueda seleccionar las UPEs aleatorias para cada estrato
+
+seleccionar_UPE <- function(df, n) {
+  df %>%
+    slice_sample(n = n, replace = FALSE)
+}
+
+# Ahora, aplicamos esta función para cada estrato, usando los valores de UPE_asignadas
+UPE_seleccionadas <- presidenciales %>%
+  group_by(estrato) %>%
+  do(seleccionar_UPE(., first(.$UPE_asignadas))) %>%
+  ungroup()
+
+# Verificamos las primeras filas del resultado
+head(UPE_seleccionadas)
+
+
+
+```
+
+Para poder analizarlo mejor, dejaremos solo las columnas que nos interesan 
+
+```{r filtro}
+presidenciales_filtrado <- presidenciales %>%
+  select(distrito_nombre, seccion_nombre, estrato, mesa_id, UPE_asignadas)  # Selecciona solo las columnas necesarias
+
+# Verificación rápida de cómo se asignaron las UPEs por estrato
+presidenciales_filtrado %>%
+  group_by(estrato) %>%
+  summarise(UPE_asignadas = max(UPE_asignadas))  # Ver cuántas UPEs fueron asignadas a cada estrato
+set.seed(123)  # Para reproducibilidad
+
+# Selección aleatoria de las UPEs por estrato
+UPE_seleccionadas <- presidenciales_filtrado %>%
+  group_by(estrato) %>%
+  do(seleccionar_UPE(., first(.$UPE_asignadas))) %>%
+  ungroup()
+
+# Ver las primeras filas de las UPE seleccionadas
+head(UPE_seleccionadas)
+
+```
+
+
+##**Diseño A - Segunda etapa de selección**
+
+En cada circuito se seleccionan 12 mesas electorales mediante muestreo aleatorio simple (o todas las que haya de haber menos), 
+
+###  a. Cuántos circuitos y mesas electorales hay en cada estrato?
+
+```{r circuitos} 
+
+# Contamos los circuitos y mesas por estrato
+resumen_estratos <- presidenciales %>%
+  group_by(estrato) %>%
+  summarise(
+    circuitos = n_distinct(seccion_nombre),  # Número de circuitos (secciones)
+    mesas_electorales = n_distinct(mesa_id)  # Número de mesas electorales
+  )
+
+
+
+kable(resumen_estratos, caption = "Resumen de Circuitos y Mesas Electorales por Estrato")
+```
+
+
+### b. Presentar en un tabulado el total de votos a UxP, JxC, LLA y FIT a nivel nacional y la proporción de votos respecto al total de votos positivos
+
+
+
+
+
+
+
+# EJERCICIO 2  (TRADUCIDO SIN RESUMIR)
+
+### Diseños de dos fases en epidemiología
+
+**Thomas Lumley**
+
+**20 de marzo de 2024**
+
+Este documento explica cómo analizar estudios de caso-cohorte y caso-control de dos fases utilizando el paquete `survey`, con ejemplos de (http://faculty.washington.edu/norm/software.html). Algunos ejemplos fueron publicados por Breslow & Chatterjee (1999).
+
+Los datos corresponden a tasas de recaída del National Wilm’s Tumor Study (NWTS). El tumor de Wilms es un cáncer raro del riñón en niños. Un tratamiento intensivo cura a la mayoría de los casos, pero el pronóstico es desfavorable cuando la enfermedad está avanzada al momento del diagnóstico y para algunos subtipos histológicos.
+La caracterización histológica del tumor es compleja, y el grupo histológico determinado por el patólogo central del NWTS predice mucho mejor que las determinaciones de los patólogos de las instituciones locales. De hecho, la histología determinada por las instituciones locales puede considerarse estadísticamente como un sustituto puro de la histología del laboratorio central.
+
+En estos ejemplos, suponemos que la determinación histológica (binaria) de la institución local (`instit`) está disponible para todos los niños del estudio y que la histología del laboratorio central (`histol`) se obtiene para una muestra probabilística de especímenes en un diseño de dos fases. Tratamos el muestreo inicial del estudio como un muestreo aleatorio simple de una superpoblación infinita. También tenemos datos sobre la etapa de la enfermedad (una variable de cuatro niveles), sobre recaídas (`rel`), y sobre el tiempo hasta la recaída.
+
+### Diseños de caso-control
+
+Breslow & Chatterjee (1999) utilizan los datos del NWTS para ilustrar diseños de caso-control de dos fases. Los datos están disponibles en(http://faculty.washington.edu/norm/software.html) en formato comprimido. Primero, expandimos los datos para tener un registro por paciente:
+
+```R
+library(survey)  # Cargamos el paquete para análisis de encuestas
+
+# Cargamos los datos
+load(system.file("doc", "nwts.rda", package="survey"))
+
+# Preparamos los datos
+nwtsnb <- nwts
+nwtsnb$case <- nwts$case - nwtsb$case
+nwtsnb$control <- nwts$control - nwtsb$control
+a <- rbind(nwtsb, nwtsnb)
+a$in.ccs <- rep(c(TRUE, FALSE), each=16)
+b <- rbind(a, a)
+b$rel <- rep(c(1, 0), each=32)
+b$n <- ifelse(b$rel, b$case, b$control)
+index <- rep(1:64, b$n)
+nwt.exp <- b[index, c(1:3, 6, 7)]
+nwt.exp$id <- 1:4088
+```
+
+#Como realmente conocemos `histol` para todos los pacientes, podemos ajustar el modelo de regresión logística con muestreo completo para comparar con los análisis de dos fases:
+
+```R
+# Ajustamos un modelo logístico con muestreo completo
+glm(rel ~ factor(stage) * factor(histol), family=binomial, data=nwt.exp)
+```
+
+#Salida esperada:
+
+```
+Call: glm(formula = rel ~ factor(stage) * factor(histol), family = binomial, data = nwt.exp)
+
+Coefficients:
+(Intercept)                -2.7066
+factor(stage)2              0.7679
+factor(stage)3              0.7747
+factor(stage)4              1.0506
+factor(histol)2             1.3104
+factor(stage)2:factor(histol)2  0.1477
+factor(stage)3:factor(histol)2  0.5942
+factor(stage)4:factor(histol)2  1.2619
+```
+Degrees of Freedom: 4087 Total (i.e. Null); 4080 Residual
+ Null Deviance:
+ 3306
+ Residual Deviance: 2943
+ AIC: 2959
+ 
+ 
+#La muestra de segunda fase consiste en todos los pacientes con histología desfavorable según los patólogos de instituciones locales, todos los casos y una muestra del 20% del resto. La fase dos es, por lo tanto, un muestreo aleatorio estratificado sin reemplazo, con estratos definidos por la interacción de `instit` y `rel`:
+
+```R
+# Diseño de muestreo en dos fases
+
+dccs2 <- twophase(id=list(~id, ~id), subset=~in.ccs, strata=list(NULL, ~interaction(instit, rel)), data=nwt.exp)
+
+summary(svyglm(rel ~ factor(stage) * factor(histol), family=binomial, design=dccs2))
+```
+
+Salida esperada:
+ svyglm(formula = rel ~ factor(stage) * factor(histol), design = dccs2,
+ family = binomial)
+ Survey design:
+ twophase2(id = id, strata = strata, probs = probs, fpc = fpc,
+ subset = subset, data = data, pps = pps)
+ 
+```
+Coefficients:
+Estimate Std. Error t value Pr(>|t|)
+(Intercept)             -2.5701   0.1288  -19.955  < 2e-16 ***
+factor(stage)2           0.5482   0.1979    2.769  0.005708 **
+factor(stage)3           0.4791   0.2032    2.359  0.018515 *
+factor(stage)4           1.0037   0.2592    3.872  0.000114 ***
+factor(histol)2          1.3505   0.3107    4.346  1.51e-05 ***
+...
+```
+Signif. codes: 0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+ (Dispersion parameter for binomial family taken to be 1.000876)
+ Number of Fisher Scoring iterations: 4
+ 
+
+#Diseños de caso-cohorte
+
+#En el diseño de caso-cohorte para análisis de supervivencia, se toma una muestra 𝑃P% de una cohorte en el momento del reclutamiento para la segunda fase, y todos los participantes que experimentan el evento (casos) se añaden más tarde a la muestra de la segunda fase.
+
+#Visualizando el diseño de muestreo como un proceso que progresa en el tiempo, como se propuso originalmente, se obtiene un diseño de doble muestreo en la segunda fase. Es más sencillo considerar el proceso desde una perspectiva atemporal y notar que los casos se muestrean con probabilidad 1, y los controles con probabilidad 𝑃/100 P/100. La subcohorte a menudo se determinará de manera retrospectiva en lugar de en el momento del reclutamiento, lo que da como resultado un muestreo aleatorio estratificado sin reemplazo, estratificado por el estado de caso. Si la subcohorte se determina prospectivamente, se puede usar el mismo análisis, post-estratificando en lugar de estratificar.
+
+#Se han propuesto muchos análisis para el diseño caso-cohorte (Therneau & Li, 1999). Aquí se consideran solo aquellos que pueden expresarse como un estimador de Horvitz–Thompson para el modelo de Cox.
+
+#Primero, cargamos los datos y los paquetes necesarios. La versión de los datos NWTS que incluye tiempos de supervivencia no es idéntica al conjunto de datos utilizado para los análisis caso-control mencionados anteriormente.
+
+library(survey)
+library(survival)
+data(nwtco)
+nwtco <- subset(nwtco, !is.na(edrel))
+
+#Una vez más acomodamos el modelo que utiliza histol para todos los pacientes para comparar con el modelo de dos fases
+
+coxph(Surv(edrel, rel) ~ factor(stage) + factor(histol) + I(age/12), data = nwtco)
+
+
+ Call:
+ coxph(formula =Surv(edrel, rel) ~ factor(stage) + factor(histol) +
+ I(age/12), data= nwtco)
+ coef exp(coef)se(coef) z p
+ factor(stage)2 0.66730 1.94898 0.12156 5.490 4.03e-08
+ factor(stage)3 0.81737 2.26455 0.12077 6.768 1.31e-11
+ factor(stage)4 1.15373 3.16999 0.13490 8.553 <2e-16
+ factor(histol)2 1.58389 4.87387 0.08869 17.859 < 2e-16
+ I(age/12) 0.06789 1.07025 0.01492 4.549 5.39e-06
+ Likelihood ratiotest=395.4 on 5 df, p=< 2.2e-16
+ n= 4028, number of events= 571
+ 
+#Se define un diseño de encuesta de dos fases usando un muestreo aleatorio simple para la primera fase y un muestreo sin reemplazo estratificado por rel para la segunda fase. El argumento subset especifica que las observaciones están en la muestra de la segunda fase si están en la subcohorte o son casos.
+
+#Como antes, la estructura de los datos es rectangular, pero las variables medidas en la fase dos pueden ser NA para los participantes no incluidos en esa fase.
+
+#Posteriormente, se comparan los resultados con los del método de Lin & Ying (1993) utilizando survival::cch. 
+
+ > (dcch<-twophase(id=list(~seqno,~seqno), strata=list(NULL,~rel),
+ +
+ subset=~I(in.subcohort | rel), data=nwtco))
+ Two-phase sparse-matrix design:
+ twophase2(id = id, strata = strata, probs = probs, fpc = fpc,
+ subset = subset, data = data, pps = pps)
+ Phase 1:
+ Independent Sampling design (with replacement)
+ svydesign(ids = ~seqno)
+ Phase 2:
+ Stratified Independent Sampling design
+ svydesign(ids = ~seqno, strata = ~rel, fpc = `*phase1*`)
+ > svycoxph(Surv(edrel,rel)~factor(stage)+factor(histol)+I(age/12),
+ +
+ design=dcch)
+ Call:
+ svycoxph(formula = Surv(edrel, rel) ~ factor(stage) + factor(histol) +
+ I(age/12), design = dcch)
+ coef exp(coef) se(coef) robust se
+ z
+ p
+ factor(stage)2 0.69266 1.99902 0.22688 0.16279 4.255 2.09e-05
+ factor(stage)3 0.62685 1.87171 0.22873 0.16823 3.726 0.000194
+ factor(stage)4 1.29951 3.66751 0.25017 0.18898 6.877 6.13e-12
+ factor(histol)2 1.45829 4.29861 0.16844 0.14548 10.024 < 2e-16
+ I(age/12)
+ 0.04609
+ 1.04717 0.02732 0.02302 2.002 0.045233
+ Likelihood ratio test= on 5 df, p=
+ n= 1154, number of events= 571
+ > subcoh <- nwtco$in.subcohort
+ > selccoh <- with(nwtco, rel==1|subcoh==1)
+ > ccoh.data <- nwtco[selccoh,]
+ > ccoh.data$subcohort <- subcoh[selccoh]
+ > cch(Surv(edrel, rel) ~ factor(stage) + factor(histol) + I(age/12),
+ +
+ data =ccoh.data, subcoh = ~subcohort, id=~seqno,
+ +
+ cohort.size=4028, method="LinYing")
+ Case-cohort analysis,x$method, LinYing
+ with subcohort of 668 from cohort of 4028
+ Call: cch(formula = Surv(edrel, rel) ~ factor(stage) + factor(histol) +
+ I(age/12), data = ccoh.data, subcoh = ~subcohort, id = ~seqno,
+ cohort.size = 4028, method = "LinYing")
+ Coefficients:
+ 5
+Value
+ SE
+ Z
+ p
+ factor(stage)2 0.69265646 0.16287906 4.252581 2.113204e-05
+ factor(stage)3 0.62685179 0.16746144 3.743260 1.816478e-04
+ factor(stage)4 1.29951229 0.18973707 6.849016 7.436052e-12
+ factor(histol)2 1.45829267 0.14429553 10.106291 0.000000e+00
+ I(age/12)
+ 0.04608972 0.02230861 2.066006 3.882790e-02
+ 
+#Barlow (1994) propone un análisis que ignora la corrección de población finita en la segunda fase. Esto simplifica la estimación de errores estándar, ya que el diseño puede expresarse como un muestreo de superpoblación estratificado de una sola fase. Sin embargo, los errores estándar serán algo conservadores. Este análisis requiere una mayor preparación de los datos, ya que los pesos cambian con el tiempo.
+ 
+#Crear una nueva variable 'eventrec' en el conjunto de datos original y establecerla en 0 para todas las filas.
+nwtco$eventrec <- rep(0, nrow(nwtco)) 
+
+# Crear un subconjunto que incluya únicamente las observaciones donde 'rel == 1' (es decir, los casos).
+nwtco.extra <- subset(nwtco, rel == 1) 
+
+# Asignar a 'eventrec' el valor 1 para este subconjunto de casos.
+nwtco.extra$eventrec <- 1 
+
+# Combinar el subconjunto de la cohorte (observaciones con 'in.subcohort == 1') y el subconjunto de casos ('nwtco.extra').
+nwtco.expd <- rbind(subset(nwtco, in.subcohort == 1), nwtco.extra)
+
+# Calcular el tiempo de finalización ('stop') para cada observación:
+# - Si es un caso ('rel == 1') y no es un evento registrado ('!eventrec'), se ajusta restando 0.001 de 'edrel'.
+# - Si no cumple estas condiciones, se usa directamente el valor de 'edrel'.
+nwtco.expd$stop <- with(nwtco.expd, ifelse(rel & !eventrec, edrel - 0.001, edrel))
+
+# Calcular el tiempo de inicio ('start') para cada observación:
+# - Si es un evento registrado ('rel == 1' y 'eventrec == 1'), se ajusta a 'edrel - 0.001'.
+# - En caso contrario, se establece en 0.
+nwtco.expd$start <- with(nwtco.expd, ifelse(rel & eventrec, edrel - 0.001, 0))
+
+# Crear una nueva variable 'event' como indicador binario:
+# - 1 si es un evento registrado ('rel == 1' y 'eventrec == 1').
+# - 0 en caso contrario.
+nwtco.expd$event <- with(nwtco.expd, ifelse(rel & eventrec, 1, 0))
+
+# Asignar pesos de muestreo ('pwts') para cada observación:
+# - Si es un evento, el peso es 1.
+# - Para otras observaciones, el peso es el inverso del promedio de las observaciones incluidas en la subcohorte o que son casos.
+nwtco.expd$pwts <- ifelse(nwtco.expd$event, 1, 1 / with(nwtco, mean(in.subcohort | rel)))
+
+
+#El análisis corresponde a un diseño de muestreo por conglomerados en el que los individuos son muestreados estratificados por pertenencia a la subcohorte, y luego se muestrean los períodos de tiempo estratificados por el estado del evento. Es necesario que el individuo sea la unidad primaria de muestreo para calcular correctamente el error estándar.
+
+ > (dBarlow<-svydesign(id=~seqno+eventrec, strata=~in.subcohort+rel,
+ +
+ data=nwtco.expd, weight=~pwts))
+ Stratified 2- level Cluster Sampling design (with replacement)
+ With (1154, 1239) clusters.
+ svydesign(id = ~seqno + eventrec, strata = ~in.subcohort + rel,
+ data = nwtco.expd, weight = ~pwts)
+ > svycoxph(Surv(start,stop,event)~factor(stage)+factor(histol)+I(age/12),
+ +
+ design=dBarlow)
+ Call:
+ svycoxph(formula = Surv(start, stop, event) ~ factor(stage) +
+ factor(histol) + I(age/12), design = dBarlow)
+ coef exp(coef) se(coef) robust se
+ z
+ p
+ factor(stage)2 0.73589 2.08734 0.18571 0.16985 4.333 1.47e-05
+ factor(stage)3 0.59763 1.81780 0.18876 0.17529 3.409 0.000651
+ factor(stage)4 1.39068 4.01757 0.20500 0.20777 6.693 2.18e-11
+ factor(histol)2 1.50450 4.50191 0.13945 0.16407 9.170 < 2e-16
+ I(age/12)
+ 0.04315
+ 1.04410 0.02228 0.02425 1.779 0.075191
+ Likelihood ratio test= on 5 df, p=
+ n= 1239, number of events= 571
+ 
+#De hecho, dado que no se está utilizando la corrección por población finita, se podría ignorar la segunda etapa del muestreo por conglomerados. También podemos producir los errores estándar de bootstrap estratificados de Wacholder et al. (1989), usando un análisis con pesos replicados.
+ 
+> (dWacholder <- as.svrepdesign(dBarlow,type="bootstrap",replicates=500))
+ Call: as.svrepdesign.default(dBarlow, type = "bootstrap", replicates = 500)
+ Survey bootstrap with 500 replicates.
+ > svycoxph(Surv(start,stop,event)~factor(stage)+factor(histol)+I(age/12),
+ +
+ design=dWacholder)
+ Call:
+ svycoxph.svyrep.design(formula = Surv(start, stop, event) ~ factor(stage) +
+ factor(histol) + I(age/12), design = dWacholder)
+ coef exp(coef) se(coef)
+ z
+ p
+ factor(stage)2 0.73589 2.08734 0.17602 4.181 2.91e-05
+ factor(stage)3 0.59763 1.81780 0.17125 3.490 0.000483
+ factor(stage)4 1.39068 4.01757 0.21684 6.413 1.42e-10
+ factor(histol)2 1.50450 4.50191 0.17025 8.837 < 2e-16
+ I(age/12)
+ 0.04315
+ 1.04410 0.02545 1.696 0.089940
+ Likelihood ratio test=NA on 5 df, p=NA
+ n= 1239, number of events= 571
+ 
+#Diseños estratificados por exposición
+
+#Borgan et al. (2000) proponen diseños estratificados o post-estratificados según las variables de la fase uno. Los ejemplos en http://faculty.washington.edu/norm/software.html utilizan una muestra diferente de subcohorte para este diseño estratificado, por lo que cargamos la nueva variable de subcohorte.
+
+ > load(system.file("doc","nwtco-subcohort.rda",package="survey"))
+ > nwtco$subcohort<-subcohort
+ > d_BorganII <- twophase(id=list(~seqno,~seqno),
+ +
+ strata=list(NULL,~interaction(instit,rel)),
+ +
+ data=nwtco, subset=~I(rel |subcohort))
+ > (b2<-svycoxph(Surv(edrel,rel)~factor(stage)+factor(histol)+I(age/12),
+ +
+ design=d_BorganII))
+ Call:
+ svycoxph(formula = Surv(edrel, rel) ~ factor(stage) + factor(histol) +
+ I(age/12), design = d_BorganII)
+ coef exp(coef) se(coef) robust se
+ z
+ p
+ factor(stage)2 0.46286 1.58861 0.23762 0.18087 2.559 0.01049
+ factor(stage)3 0.58309 1.79156 0.23965 0.17848 3.267 0.00109
+ factor(stage)4 1.05967 2.88541 0.26182 0.20524 5.163 2.43e-07
+ factor(histol)2 1.59744 4.94035 0.17688 0.13342 11.973 < 2e-16
+ I(age/12)
+ 0.02994
+ 1.03039 0.02942 0.03337 0.897 0.36972
+ Likelihood ratio test= on 5 df, p=
+ n= 1062, number of events= 571
+ 
+#Podemos, además, realizar un post-estratificado del diseño según el estadio de la enfermedad y la edad con la función calibrate.
+
+ > d_BorganIIps <- calibrate(d_BorganII, phase=2, formula=~age+interaction(instit,rel,stage))
+ > svycoxph(Surv(edrel,rel)~factor(stage)+factor(histol)+I(age/12),
+ +
+ design=d_BorganIIps)
+ Call:
+ svycoxph(formula = Surv(edrel, rel) ~ factor(stage) + factor(histol) +
+ I(age/12), design = d_BorganIIps)
+ coef exp(coef) se(coef) robust se
+ z
+ p
+ factor(stage)2 0.67006 1.95436 0.23776 0.14263 4.698 2.63e-06
+ factor(stage)3 0.75935 2.13689 0.23952 0.14228 5.337 9.45e-08
+ factor(stage)4 1.27046 3.56249 0.26150 0.15176 8.371 < 2e-16
+ factor(histol)2 1.57302 4.82121 0.17627 0.12999 12.101 < 2e-16
+ I(age/12)
+ 0.03135
+ 1.03185 0.02984 0.03346 0.937
+ Likelihood ratio test= on 5 df, p=
+ n= 1062, number of events= 571
+ 
+
