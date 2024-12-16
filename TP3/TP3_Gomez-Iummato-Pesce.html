@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es" xml:lang="es"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.5.57">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Gomez Vargas Andrea, Iummato Luciana, Pesce Andrea Gisele">
+
+<title>TP 3 - Final Muestreo Polietápico</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="TP3_Gomez-Iummato-Pesce_files/libs/clipboard/clipboard.min.js"></script>
+<script src="TP3_Gomez-Iummato-Pesce_files/libs/quarto-html/quarto.js"></script>
+<script src="TP3_Gomez-Iummato-Pesce_files/libs/quarto-html/popper.min.js"></script>
+<script src="TP3_Gomez-Iummato-Pesce_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="TP3_Gomez-Iummato-Pesce_files/libs/quarto-html/anchor.min.js"></script>
+<link href="TP3_Gomez-Iummato-Pesce_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="TP3_Gomez-Iummato-Pesce_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="TP3_Gomez-Iummato-Pesce_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="TP3_Gomez-Iummato-Pesce_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="TP3_Gomez-Iummato-Pesce_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script src="TP3_Gomez-Iummato-Pesce_files/libs/quarto-diagram/mermaid.min.js"></script>
+<script src="TP3_Gomez-Iummato-Pesce_files/libs/quarto-diagram/mermaid-init.js"></script>
+<link href="TP3_Gomez-Iummato-Pesce_files/libs/quarto-diagram/mermaid.css" rel="stylesheet">
+
+
+</head>
+
+<body>
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Tabla de contenidos</h2>
+   
+  <ul>
+  <li><a href="#paquetes-de-trabajo" id="toc-paquetes-de-trabajo" class="nav-link active" data-scroll-target="#paquetes-de-trabajo">Paquetes de trabajo</a></li>
+  <li><a href="#ejercicio-1a" id="toc-ejercicio-1a" class="nav-link" data-scroll-target="#ejercicio-1a">Ejercicio 1A</a>
+  <ul class="collapse">
+  <li><a href="#diseño-a---primer-etapa-de-selección" id="toc-diseño-a---primer-etapa-de-selección" class="nav-link" data-scroll-target="#diseño-a---primer-etapa-de-selección"><strong>Diseño A - Primer etapa de selección</strong></a></li>
+  </ul></li>
+  <li><a href="#ejercicio-2-probability-vs.-nonprobability-sampling" id="toc-ejercicio-2-probability-vs.-nonprobability-sampling" class="nav-link" data-scroll-target="#ejercicio-2-probability-vs.-nonprobability-sampling">Ejercicio 2: Probability vs.&nbsp;Nonprobability Sampling</a>
+  <ul class="collapse">
+  <li><a href="#kiærs-representative-method-of-statistical-surveys" id="toc-kiærs-representative-method-of-statistical-surveys" class="nav-link" data-scroll-target="#kiærs-representative-method-of-statistical-surveys">Kiær’s Representative Method of Statistical Surveys</a></li>
+  <li><a href="#neymans-seminal-paper" id="toc-neymans-seminal-paper" class="nav-link" data-scroll-target="#neymans-seminal-paper">Neyman’s Seminal Paper</a></li>
+  <li><a href="#quota-sampling" id="toc-quota-sampling" class="nav-link" data-scroll-target="#quota-sampling">Quota Sampling</a></li>
+  <li><a href="#pseudo-probability-sample-designs-for-hard-to-survey-populations" id="toc-pseudo-probability-sample-designs-for-hard-to-survey-populations" class="nav-link" data-scroll-target="#pseudo-probability-sample-designs-for-hard-to-survey-populations">Pseudo-Probability Sample Designs for “Hard-to-Survey Populations”</a></li>
+  <li><a href="#internet-surveys" id="toc-internet-surveys" class="nav-link" data-scroll-target="#internet-surveys">Internet Surveys</a></li>
+  <li><a href="#model-dependent-inference" id="toc-model-dependent-inference" class="nav-link" data-scroll-target="#model-dependent-inference">Model-Dependent Inference</a></li>
+  <li><a href="#analytic-uses-of-survey-data" id="toc-analytic-uses-of-survey-data" class="nav-link" data-scroll-target="#analytic-uses-of-survey-data">Analytic Uses of Survey Data</a></li>
+  <li><a href="#administrative-records-and-big-data" id="toc-administrative-records-and-big-data" class="nav-link" data-scroll-target="#administrative-records-and-big-data">Administrative Records and Big Data</a></li>
+  <li><a href="#conclusiones" id="toc-conclusiones" class="nav-link" data-scroll-target="#conclusiones">Conclusiones</a></li>
+  </ul></li>
+  <li><a href="#bibliografía" id="toc-bibliografía" class="nav-link" data-scroll-target="#bibliografía">Bibliografía</a></li>
+  </ul>
+<div class="quarto-alternate-formats"><h2>Otros formatos</h2><ul><li><a href="TP3_Gomez-Iummato-Pesce.pdf"><i class="bi bi-file-pdf"></i>Typst</a></li><li><a href="TP3_Gomez-Iummato-Pesce.pdf"><i class="bi bi-file-pdf"></i>PDF</a></li></ul></div></nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">TP 3 - Final Muestreo Polietápico</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Autor/a</div>
+    <div class="quarto-title-meta-contents">
+             <p>Gomez Vargas Andrea, Iummato Luciana, Pesce Andrea Gisele </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Fecha de publicación</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">16 de diciembre de 2024</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="paquetes-de-trabajo" class="level1">
+<h1>Paquetes de trabajo</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(survey)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readxl)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(gt)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(sampling)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(VIM)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(binom)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(openxlsx)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(DT)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stratification)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">scipen =</span> <span class="dv">999</span>)</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div style="page-break-after: always;"></div>
+<p>Elegiremos avanzar con el ejericicio 1A, a realizar con la base de votos de Octubre 2023, trabajando con voto a presidente, en el cual compararemos el efecto del tamaño de muestra en cada etapa en el CV.</p>
+</section>
+<section id="ejercicio-1a" class="level1">
+<h1>Ejercicio 1A</h1>
+<p>El conjunto de mesas electorales de la elección Octubre 2023 será nuestro universo bajo estudio.</p>
+<p>Se desea estimar el total de votos a Unión por la Patria, Juntos por el Cambio, La Libertad Avanza y FIT a Presidente y Vice a nivel nacional y proporción de votos respecto al total de votos positivos mediante una muestra aleatoria de mesas electorales.</p>
+<p>Se compararán dos diseños, ambos bietápicos; con los circuitos electorales como Unidades de Primera Etapa (UPEs) y las mesas electorales como Unidades de Segunda Etapa (USEs).</p>
+<section id="diseño-a---primer-etapa-de-selección" class="level2">
+<h2 class="anchored" data-anchor-id="diseño-a---primer-etapa-de-selección"><strong>Diseño A - Primer etapa de selección</strong></h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>Resultados_Octubre_2023_PRESIDENCIALES<span class="ot">&lt;-</span><span class="fu">read_csv</span>(<span class="st">"Resultados_Octubre_2023_PRESIDENCIALES.csv"</span>) </span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(Resultados_Octubre_2023_PRESIDENCIALES)</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 1,045,200
+Columns: 23
+$ año                      &lt;dbl&gt; 2023, 2023, 2023, 2023, 2023, 2023, 2023, 202…
+$ eleccion_tipo            &lt;chr&gt; "GENERAL", "GENERAL", "GENERAL", "GENERAL", "…
+$ recuento_tipo            &lt;chr&gt; "PROVISORIO", "PROVISORIO", "PROVISORIO", "PR…
+$ padron_tipo              &lt;chr&gt; "NORMAL", "NORMAL", "NORMAL", "NORMAL", "NORM…
+$ distrito_id              &lt;chr&gt; "01", "01", "01", "01", "01", "01", "01", "01…
+$ distrito_nombre          &lt;chr&gt; "Ciudad Autónoma de Buenos Aires", "Ciudad Au…
+$ seccionprovincial_id     &lt;dbl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+$ seccionprovincial_nombre &lt;chr&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+$ seccion_id               &lt;chr&gt; "001", "001", "001", "001", "001", "001", "00…
+$ seccion_nombre           &lt;chr&gt; "Comuna 01", "Comuna 01", "Comuna 01", "Comun…
+$ circuito_id              &lt;chr&gt; "00001", "00001", "00001", "00001", "00001", …
+$ circuito_nombre          &lt;chr&gt; "00001", "00001", "00001", "00001", "00001", …
+$ mesa_id                  &lt;chr&gt; "00001", "00001", "00001", "00001", "00001", …
+$ mesa_tipo                &lt;chr&gt; "NATIVOS", "NATIVOS", "NATIVOS", "NATIVOS", "…
+$ mesa_electores           &lt;dbl&gt; 345, 345, 345, 345, 345, 345, 345, 345, 345, …
+$ cargo_id                 &lt;dbl&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, …
+$ cargo_nombre             &lt;chr&gt; "PRESIDENTE Y VICE", "PRESIDENTE Y VICE", "PR…
+$ agrupacion_id            &lt;dbl&gt; 134, 132, 135, 136, 133, 0, 0, 0, 0, 0, 134, …
+$ agrupacion_nombre        &lt;chr&gt; "UNION POR LA PATRIA", "JUNTOS POR EL CAMBIO"…
+$ lista_numero             &lt;dbl&gt; NA, NA, NA, NA, NA, 0, 0, 0, 0, 0, NA, NA, NA…
+$ lista_nombre             &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+$ votos_tipo               &lt;chr&gt; "POSITIVO", "POSITIVO", "POSITIVO", "POSITIVO…
+$ votos_cantidad           &lt;dbl&gt; 96, 65, 44, 13, 4, 8, 3, 0, 0, 0, 102, 86, 38…</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="ejercicio-2-probability-vs.-nonprobability-sampling" class="level1">
+<h1>Ejercicio 2: Probability vs.&nbsp;Nonprobability Sampling</h1>
+<p><em>Palabras clave: muestreo representativo, muestreo por cuotas, poblaciones difíciles de encuestar, inferencia dependiente del modelo, encuestas por Internet, big data, registros administrativos.</em></p>
+<p>Este trabajo presenta una selección de los principales desarrollos en la investigación sobre encuestas desde su introducción a finales del siglo XIX, centrándose en las encuestas de hogares y personas, con énfasis en los métodos de muestreo utilizados. Aunque se han producido avances significativos en otras áreas, como los modos de recolección de datos y el diseño de cuestionarios, estos temas quedan fuera del alcance del análisis.</p>
+<p><em>Figura 1. Mapa conceptual</em></p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart TD
+  A(Estadísticas Sociales) --&gt; B(Encuestas a hogares y personas)
+  B --&gt; C{{Métodos de muestreo}}
+  C --&gt; D[Probabilísticos]
+  C --&gt; E[No probabilísticos]
+  E --&gt; F[Muestreo por cuotas]
+  E --&gt; G[Muestreo bola de nieve]
+  E --&gt; H[Muestreo por conveniencia]
+  D --&gt; I[Muestreo aleatorio simple]
+  D --&gt; J[Muestreo sistemático]
+  D --&gt; K[Muestreo estratificado]
+  D --&gt; L[Muestreo por conglomerado]
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<section id="kiærs-representative-method-of-statistical-surveys" class="level2">
+<h2 class="anchored" data-anchor-id="kiærs-representative-method-of-statistical-surveys">Kiær’s Representative Method of Statistical Surveys</h2>
+<p>El método representativo de Kiær, desarrollado en 1897, fue pionero en el diseño de encuestas estadísticas a gran escala en Noruega, utilizando un muestreo por áreas en dos etapas para garantizar la representatividad. Este enfoque buscaba reflejar un microcosmos de la población mediante criterios basados en el censo de 1891, seleccionando distritos administrativos y personas dentro de ellos. Sin embargo, su trabajo enfrentó fuertes críticas en reuniones del International Statistical Institute (ISI) y en Noruega, donde su diseño fue cuestionado por no ser verdaderamente representativo y por errores en la estimación de ciertas variables clave. La controversia, especialmente en torno a un proyecto de ley sobre seguridad social, llevó al abandono del método representativo en Noruega.</p>
+<p>Tras décadas de debate, el muestreo representativo volvió a ganar aceptación en el ISI en 1924, cuando se reconoció la validez de las “investigaciones parciales”. Un informe de 1926 concluyó que las muestras eran aceptables si eran suficientemente representativas, ya fuera mediante selección aleatoria o intencional. Este cambio marcó un avance hacia los métodos de muestreo que conocemos hoy, integrando principios de representatividad estadística en la investigación.</p>
+</section>
+<section id="neymans-seminal-paper" class="level2">
+<h2 class="anchored" data-anchor-id="neymans-seminal-paper">Neyman’s Seminal Paper</h2>
+<p>En 1934, Neyman presentó un artículo en el que comparaba los métodos de selección aleatoria y selectiva, lo que marcó un hito en el muestreo estadístico. En su trabajo, discutió cómo se pueden realizar inferencias a partir de muestras probabilísticas de poblaciones finitas y definió el intervalo de confianza en este contexto. También criticó las limitaciones del muestreo selectivo, señalando que, en muchos casos, no representaba adecuadamente a la población, como ocurrió con el estudio realizado por Gini y Galvani sobre el Censo General Italiano. Su trabajo promovió la adopción generalizada del muestreo probabilístico, especialmente por parte de las oficinas estadísticas nacionales, y sentó las bases para el desarrollo de muchos métodos y teorías de muestreo en las décadas siguientes.</p>
+<p>Sin embargo, para aplicar el diseño de muestreo ideal de Neyman, es necesario cumplir con ciertas condiciones, como disponer de un marco de muestreo completo, probabilidades de selección conocidas y respuestas precisas de los encuestados. A pesar de estas condiciones ideales, en la práctica surgen problemas como la no cobertura (cuando algunos elementos de la población no se incluyen en el marco de muestreo) y la no respuesta (cuando los individuos seleccionados no responden). Estos problemas pueden introducir errores en las estimaciones obtenidas a partir de las muestras.</p>
+<p>A pesar de la robustez del muestreo probabilístico, este tiene desventajas, como los altos costos y los plazos más largos para la recolección de datos. Para hacer frente a estos desafíos, se han desarrollado métodos menos rigurosos, conocidos como “pseudo-probabilísticos”, que intentan aplicar un enfoque de muestreo probabilístico pero dependen de suposiciones de modelado. Métodos como el muestreo por cuotas, ampliamente utilizado en la investigación de mercados, son ejemplos de estas técnicas, que aunque no son muestreo probabilístico, buscan aproximarse a sus resultados.</p>
+</section>
+<section id="quota-sampling" class="level2">
+<h2 class="anchored" data-anchor-id="quota-sampling">Quota Sampling</h2>
+<p>En 1936, el sondeo de la revista Literary Digest para predecir las elecciones presidenciales de Estados Unidos resultó en un claro sesgo debido a la muestra utilizada. Al seleccionar a los participantes de directorios telefónicos, propietarios de automóviles y votantes registrados, se excluyó a sectores más pobres de la población, lo que favoreció a los votantes de clases altas. Aunque el tamaño de la muestra fue grande (10 millones de personas), la falta de ajuste de ponderaciones resultó en una predicción incorrecta. Esto muestra que un tamaño de muestra grande no garantiza estimaciones precisas, como también lo señalaron los ajustes posteriores realizados por Lohr y Brick, que aún no resolvieron completamente el problema.</p>
+<p>Para enfrentar sesgos similares, los investigadores de mercado y los encuestadores desarrollaron métodos de muestreo por cuotas. Este método controla las características demográficas de los entrevistados, como sexo, edad o estado laboral, con el fin de garantizar que la muestra sea representativa de esos grupos. Aunque el muestreo por cuotas tiene la ventaja de ser más barato y rápido que el muestreo probabilístico, también se basa en la suposición de que los no respondedores dentro de cada grupo son sustituidos aleatoriamente, lo que puede generar sesgos si no se maneja adecuadamente. Aunque algunos estudios han encontrado que los resultados de las muestras por cuotas son similares a los de las probabilísticas, esto no siempre ocurre, lo que resalta la limitación de este enfoque.</p>
+</section>
+<section id="pseudo-probability-sample-designs-for-hard-to-survey-populations" class="level2">
+<h2 class="anchored" data-anchor-id="pseudo-probability-sample-designs-for-hard-to-survey-populations">Pseudo-Probability Sample Designs for “Hard-to-Survey Populations”</h2>
+<p>En los últimos años, ha habido un aumento significativo en el uso de métodos de encuestas sociales para estudiar las características de poblaciones difíciles de encuestar, que son pequeños segmentos de la población general sin un marco de muestreo separado. Este tipo de población incluye grupos sensibles, como niños de 1 año para encuestas de vacunación o personas cuya pertenencia a ciertos grupos es confidencial. Para estos casos, se han desarrollado varios diseños de muestreo. Un ejemplo común es el <strong>método de muestreo del Programa Ampliado de Inmunización (EPI) de la OMS</strong>, que emplea un diseño de muestreo de dos etapas en comunidades seleccionadas al azar, sin necesidad de listar hogares. Este método se ha utilizado ampliamente en países en desarrollo para medir la inmunización infantil.</p>
+<p>Otros métodos incluyen el <strong>muestreo basado en lugares</strong>, que se utiliza para muestrear poblaciones difíciles de encuestar que frecuentan ciertos lugares, como las poblaciones nómadas o aquellas cuyo estatus es sensible. Este método requiere la construcción de un marco de lugares y la selección de muestras de ubicación y períodos de tiempo para la recolección de datos. Finalmente, el <strong>muestreo dirigido por los propios encuestados (Respondent Driven Sampling - RDS)</strong> es una técnica que se basa en las redes sociales de los miembros de la población, utilizada para muestrear poblaciones ocultas como usuarios de drogas inyectables o trabajadores sexuales. Aunque el RDS puede generar una muestra de probabilidad en circunstancias ideales, en la práctica, es difícil garantizar que se cumplan todas las condiciones necesarias para obtener una muestra representativa.</p>
+</section>
+<section id="internet-surveys" class="level2">
+<h2 class="anchored" data-anchor-id="internet-surveys">Internet Surveys</h2>
+<p>El selección de muestras a través de internet es un enfoque relativamente reciente para realizar investigaciones sociales, que ha ganado gran popularidad debido a la posibilidad de obtener respuestas de grandes muestras a bajo costo y con alta velocidad. Sin embargo, los métodos de muestreo no probabilísticos que se utilizan en este tipo de encuestas generan preocupaciones sobre posibles sesgos en las estimaciones de los resultados. Las personas sin acceso a internet, o con acceso limitado, quedan excluidas de estos estudios, lo que hace que los participantes no sean una muestra representativa de la población general.</p>
+<p>Un tipo de muestreo por internet es el muestreo en río, en el que se colocan invitaciones para participar en encuestas en varios sitios web, generalmente ofreciendo alguna forma de compensación. Este proceso de selección introduce <strong>sesgos que cuestionan la representatividad de la muestra</strong>, además de plantear dudas sobre la sinceridad y reflexión de las respuestas. Otro enfoque es el de los paneles de internet opt-in, donde personas son seleccionadas para participar en encuestas a lo largo del tiempo a cambio de un pago. Aunque estas encuestas no probabilísticas han sido mejoradas con métodos de ponderación y ajustes complejos, persisten las dudas sobre la representatividad de las respuestas y sobre si los datos externos utilizados para calibrar las muestras pueden reflejar con precisión a la población general.</p>
+</section>
+<section id="model-dependent-inference" class="level2">
+<h2 class="anchored" data-anchor-id="model-dependent-inference">Model-Dependent Inference</h2>
+<p>La inferencia dependiente del modelo ha ganado relevancia en el ámbito de las encuestas sociales, especialmente para abordar imperfecciones en el muestreo, como la no cobertura y la no respuesta. En particular, los <strong>enfoques basados en modelos</strong> se han vuelto necesarios para realizar análisis en subgrupos cuando los tamaños muestrales no son suficientes para obtener estimadores precisos a partir de métodos de muestreo basados en el diseño. Sin embargo, la adopción de estos métodos ha generado debates, ya que los estadísticos que prefieren enfoques basados en el diseño consideran que los métodos dependientes del modelo pueden ser menos confiables, sobre todo si el modelo está mal especificado. A pesar de estas preocupaciones, los avances en los métodos de ajuste, como la estimación de pequeñas áreas, han permitido que estos enfoques se utilicen de manera más frecuente, especialmente cuando se requiere estimar parámetros en áreas geográficas específicas.</p>
+<p>El enfoque dependiente del modelo se utiliza especialmente cuando se buscan estimaciones para subgrupos pequeños o áreas administrativas definidas geográficamente, donde las muestras son demasiado pequeñas para obtener resultados precisos mediante métodos de diseño tradicionales. Estos enfoques de predicción permiten hacer estimaciones cuando los datos de los marcos de muestreo son insuficientes o no están disponibles para toda la población objetivo. Aunque estas estimaciones basadas en modelos pueden reducir la varianza en comparación con los estimadores basados en el diseño, no están exentas de sesgos si los modelos no se ajustan correctamente. A pesar de ello, la creciente aceptación de métodos como la estimación de pequeñas áreas ha sido clave para su implementación exitosa en diversas áreas, especialmente en el contexto de encuestas sociales de gran escala.</p>
+</section>
+<section id="analytic-uses-of-survey-data" class="level2">
+<h2 class="anchored" data-anchor-id="analytic-uses-of-survey-data">Analytic Uses of Survey Data</h2>
+<p>En la década de 1970, con la expansión de la potencia de cómputo y el software, los datos de encuestas recolectados mediante diseños complejos comenzaron a utilizarse principalmente en análisis secundarios para estudiar relaciones entre variables, buscando conexiones causales. Inicialmente, la regresión múltiple fue la técnica principal, con un enfoque en la magnitud de los coeficientes de regresión. Algunos analistas argumentaban que el interés no era para la población finita específica, sino para estimar parámetros de una superpoblación más general, donde el diseño de la muestra se volvía irrelevante, a menos que los pesos y el agrupamiento fueran variables predictoras importantes.</p>
+<p>Con el tiempo, el uso de regresión se amplió para incluir otros modelos y técnicas multivariadas como el análisis de datos categóricos, el modelado multinivel y los análisis longitudinales. Estas técnicas han sido aplicadas a datos de encuestas complejas, permitiendo una mayor flexibilidad en el análisis de diversas relaciones entre variables, aunque su aplicación con datos complejos requiere enfoques especializados.</p>
+</section>
+<section id="administrative-records-and-big-data" class="level2">
+<h2 class="anchored" data-anchor-id="administrative-records-and-big-data">Administrative Records and Big Data</h2>
+<p>En los últimos tiempos, <strong>ha aumentado el interés en el uso de registros administrativos como una fuente alternativa de datos para la investigación</strong>. Esta alternativa ofrece ventajas notables en términos de costos y tamaño de muestra, pero también plantea importantes desafíos, como las cuestiones de privacidad y confidencialidad. A pesar de su atractivo, los registros administrativos tienen limitaciones, como la cobertura de los datos, la consistencia en la medición de las variables, y la validez de los datos a lo largo del tiempo. Además, muchas veces estos registros no contienen toda la información necesaria para los análisis, lo que puede requerir la vinculación de varios conjuntos de registros, un proceso que conlleva sus propios problemas de calidad y confidencialidad.</p>
+<p>Además de los registros administrativos mantenidos por el gobierno, existen otras fuentes de datos para la investigación social, como los registros de organizaciones privadas. Sin embargo, estos también presentan problemas de calidad y acceso. Otra fuente de datos relevante es el “big data”, como el que se obtiene de la ubicación de los teléfonos móviles, que puede proporcionar información sobre los tiempos de viaje de los usuarios. A pesar de su atractivo, <strong>los grandes conjuntos de datos pueden ser engañosos</strong>, como se evidenció en el caso de Google Flu Trends, que inicialmente fue prometedor para predecir brotes de gripe, pero terminó fallando. Este tipo de ejemplos advierte sobre <strong>la necesidad de un análisis crítico al utilizar grandes volúmenes de datos</strong>.</p>
+</section>
+<section id="conclusiones" class="level2">
+<h2 class="anchored" data-anchor-id="conclusiones">Conclusiones</h2>
+<p>El debate entre muestreo probabilístico y muestreo no probabilístico fue crucial en los inicios de la investigación sobre encuestas. No fue hasta el trabajo de Neyman (1934) que el muestreo probabilístico se consolidó como el estándar para encuestas a gran escala. Este método garantiza que los resultados estén sujetos únicamente a errores de muestreo medibles, a diferencia del muestreo no probabilístico, donde siempre existe la duda sobre la representatividad de la muestra respecto a las variables de interés.</p>
+<p>Aunque el muestreo probabilístico ofrece mayor rigor, implica mayores costos y tiempos, lo que ha llevado al desarrollo de métodos alternativos más accesibles para ciertas poblaciones. Hoy en día, se utilizan modelos que integran datos de distintas fuentes, como encuestas probabilísticas y no probabilísticas, registros administrativos y big data. Esto ha impulsado investigaciones sobre cómo combinar estas fuentes para realizar inferencias válidas y confiables.</p>
+</section>
+</section>
+<section id="bibliografía" class="level1">
+<h1>Bibliografía</h1>
+<p>Kalton, G., 2023. Probability vs.&nbsp;Nonprobability Sampling: From the Birth of Survey Sampling to the Present Day. Statistics in Transition new series, 24(3), pp.&nbsp;1-22. <a href="https://doi.org/10.59170/stattrans-2023-029" class="uri">https://doi.org/10.59170/stattrans-2023-029</a></p>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copiado");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copiado");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
