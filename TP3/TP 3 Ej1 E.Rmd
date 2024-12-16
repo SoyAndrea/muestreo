@@ -1,0 +1,587 @@
+---
+title: "TP 3 - Muestreo"
+author: "Pesce"
+date: "2024-12-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# **Ejercicio 1**
+
+Elegiremos avanzar con el ejericicio 1A, a realizar con la base de votos de Octubre 2023, trabajando con voto a presidente, en el cual compararemos el efecto del tamaño de muestra en cada etapa en el CV. 
+
+## **Ejercicio 1A**
+El conjunto de mesas electorales de la elección Octubre 2023 será nuestro universo bajo estudio.
+
+Se desea estimar el total de votos a Unión por la Patria, Juntos por el Cambio, La Libertad Avanza y FIT a Presidente y Vice a nivel nacional y proporción de votos respecto al total de votos positivos mediante una muestra aleatoria de mesas electorales.
+
+Se compararán dos diseños, ambos bietápicos; con los circuitos electorales como Unidades de Primera Etapa (UPEs) y las mesas electorales como Unidades de Segunda Etapa (USEs).
+
+## **Diseño A - Primer etapa de selección**
+
+```{r librerias}
+library(tidyverse)
+library(survey)
+library(readxl)
+library(sampling)
+library(VIM)
+library(binom)
+library(readr)
+library(DT)
+library(stratification)
+library(kableExtra)
+
+
+options(survey.lonely.psu="adjust")
+```
+
+```{r importo datos}
+Resultados_Octubre_2023_PRESIDENCIALES<-read_csv("Resultados_Octubre_2023_PRESIDENCIALES.csv") #read_csv("C:/Users/Gisele/Desktop/Resultados_Octubre_2023_PRESIDENCIALES.csv")
+
+glimpse(Resultados_Octubre_2023_PRESIDENCIALES)
+
+```
+
+Filtramos los datos para el cargo de "PRESIDENTE Y VICE" y creamos un marco de muestreo por estrato
+
+```{r estratos}
+
+#Filtramos los datos para el cargo "PRESIDENTE Y VICE"
+presidenciales <- Resultados_Octubre_2023_PRESIDENCIALES %>%
+  filter(cargo_nombre == "PRESIDENTE Y VICE")
+
+#Generar IDs
+presidenciales$mesa_id_unico = paste(presidenciales$distrito_id, presidenciales$seccion_id, presidenciales$circuito_id, presidenciales$mesa_id)
+
+presidenciales$circuito_id_unico = paste(presidenciales$distrito_id, presidenciales$seccion_id, presidenciales$circuito_id)
+  
+# Agrupamos los datos por distrito para conocer el número de mesas en cada estrato
+mesas_por_distrito <- presidenciales %>%
+  group_by(distrito_nombre) %>%
+  summarise(mesas_totales = n_distinct(mesa_id_unico))
+
+
+mesas_por_distrito
+```
+
+Estratificamos el marco de muestreo en estas zonas:CABA, Partidos del Conurbano Bonaerense, Resto de Buenos Aires, Región Pampeana (Córdoba, Santa Fé, La Pampa, Entre Ríos), NEA - NOA, Resto
+
+```{r ver secccion para estrato} 
+#Primero, dado que los distritos no tienen diferenciado el conurbano del resto de la Provincia, filtramos las secciones en las cuales el distrito es Buenos Aires.
+
+#Filtrar los datos para el distrito "Buenos Aires" y luego ver los valores únicos de seccion_nombre
+
+unique(presidenciales %>% 
+         filter(distrito_nombre == "Buenos Aires") %>% 
+         pull(seccion_nombre))
+
+```
+
+```{r conurbano}
+
+conurbano_bonaerense <- c("La Matanza", "Lomas de Zamora", "Quilmes", "Avellaneda", "Morón", "Tres de Febrero", 
+                          "Lanús", "Almirante Brown", "San Fernando", "San Isidro", "San Miguel", 
+                          "Florencio Varela", "Berazategui", "Hurlingham", "Ituzaingó", "Moreno", 
+                          "Merlo", "Tigre", "Varela", "Almirante Brown", "San Vicente", "La Plata", "Vicente López")
+```
+
+
+```{r estratificación}
+
+# Estratificación y modificación de la columna 'estrato' 
+presidenciales <- presidenciales %>%
+  mutate(estrato = case_when(
+    distrito_nombre == "Ciudad Autónoma de Buenos Aires" ~ "CABA",
+    distrito_nombre == "Buenos Aires" & seccion_nombre %in% conurbano_bonaerense ~ "Partidos del Conurbano Bonaerense", 
+    distrito_nombre == "Buenos Aires" & !(seccion_nombre %in% conurbano_bonaerense) ~ "Resto de Buenos Aires",
+    distrito_nombre %in% c("Córdoba", "Santa Fe", "La Pampa", "Entre Ríos") ~ "Región Pampeana",
+    distrito_nombre %in% c("Chaco", "Jujuy", "Salta", "Tucumán", "Misiones", "Formosa", "Santiago del Estero", "Catamarca", "Corrientes") ~ "NEA - NOA",  
+    TRUE ~ "Resto"
+  ))
+
+
+table(presidenciales$estrato)
+
+```
+  
+###Asignación de la muestra por estrato en forma proporcional  
+
+El ejercicio indica una muestra aleatoria, estratificada, de 80 UPEs, estratificando el marco de muestreo en estas zonas: CABA, Partidos del Conurbano Bonaerense, Resto de Buenos Aires
+Región Pampeana (Córdoba, Santa Fé, La Pampa, Entre Ríos), NEA - NOA, Resto.
+
+Para poder realizar la asignacion de la muestra debemos, calcular el total de mesas electorales en cada estrato, calcular la proporción de mesas de cada estrato sobre el total de mesas y asignar la cantidad de UPEs a cada estrato proporcionalmente.
+
+``` {r asignación}
+
+# Calculamos el total de mesas por estrato
+mesas_por_estrato <- presidenciales %>%
+  group_by(estrato) %>%
+  summarise(total_mesas = n_distinct(mesa_id_unico))
+
+mesas_por_estrato
+
+# Calculamos la proporción de mesas por estrato
+total_mesas_totales <- sum(mesas_por_estrato$total_mesas)
+
+mesas_por_estrato <- mesas_por_estrato %>%
+  mutate(proporcion_mesas = total_mesas / total_mesas_totales)
+
+#Asignamos el número de UPEs de manera proporcional (80 UPEs en total)
+total_UPEs <- 80
+
+mesas_por_estrato <- mesas_por_estrato %>%
+  mutate(UPE_asignadas = round(proporcion_mesas * total_UPEs))
+
+mesas_por_estrato
+```
+Se asignaron 6 UPE a CABA, 17 a NEA-NOA, 16 a Partidos del Conurbano Bonaeresme, 17 a Region Pampeana, 11 a Resto y 13 a Resto de Buenos Aires.  
+
+
+### Selección de circuitos en cada estrato mediante MAS
+
+Para realizar un MAS, debemos primero filtrar los datos por estrato y seleccionar de manera aleatoria los circuitos según la cantidad de UPEs asignadas.
+
+
+Primero agregamos la columna UPE_asignadas a la tabla presidenciales
+
+```{r upes}
+presidenciales <- presidenciales %>%
+  left_join(mesas_por_estrato %>% select(estrato, UPE_asignadas), by = "estrato")
+
+glimpse(presidenciales)
+```
+
+```{r verificaciones}
+str(presidenciales$UPE_asignadas)  # Comprobar el tipo de datos de la columna UPE_asignadas
+head(presidenciales$UPE_asignadas)  # Verificar los primeros valores
+summary(presidenciales$UPE_asignadas)  # Ver resumen de la columna
+```
+
+```{r verificaciones}
+presidenciales %>%
+  filter(is.na(UPE_asignadas))  # Ver filas con UPE_asignadas NA
+```
+
+Con esto sabemos que la columna UPE_asignadas es numérica, que su valor mínimo es 6, el valor máximo es 17 y no hay valores faltantes en la columna UPE_asignadas.
+
+Procederemos ahora a seleccionar las UPEs de manera aleatoria en cada estrato mediante Muestreo Aleatorio Simple (MAS)
+
+
+```{r}
+base_mesas <-presidenciales %>%
+  group_by(estrato, circuito_id_unico ,mesa_id_unico ,agrupacion_nombre) %>%
+  summarise(Voto = sum(votos_cantidad,na.rm = TRUE))%>%
+  pivot_wider(names_from = agrupacion_nombre,
+              values_from = Voto) %>%
+  ungroup()
+
+set.seed(1234)  # Para reproducibilidad
+
+# total de mesas por estrato en el dataframe 'marco_circuitos'
+marco_circuitos <- presidenciales %>%
+  group_by(estrato, circuito_id_unico) %>%
+  summarize(total_mesas = n_distinct(mesa_id_unico), .groups = "drop")
+
+#  columna 'UPE_asignadas' en el marco de circuitos
+marco_circuitos_con_asignacion <- marco_circuitos %>%
+  left_join(presidenciales %>%
+              group_by(estrato) %>%
+              summarize(UPE_asignadas = first(UPE_asignadas)), by = "estrato")
+
+
+# Ahora realizamos la selección de UPEs
+marco_circuitos_con_asignacion <- marco_circuitos_con_asignacion[order(marco_circuitos_con_asignacion$estrato),]
+
+smplCircuitos <- sampling::strata(data=marco_circuitos_con_asignacion, stratanames = "estrato",
+                                 size=mesas_por_estrato$UPE_asignadas,
+                                 method="srswor")
+
+muestra_circuitos <- getdata(marco_circuitos_con_asignacion, smplCircuitos)
+muestra_circuitos$F1 <- 1/muestra_circuitos$Prob
+
+# Verificar las primeras filas del resultado
+head(muestra_circuitos)
+# Verificar tamaño de muestra por estrato
+table(muestra_circuitos$estrato)
+
+```
+
+
+##**Diseño A - Segunda etapa de selección**
+
+En cada circuito se seleccionan 12 mesas electorales mediante muestreo aleatorio simple (o todas las que haya de haber menos), 
+
+###  a. Cuántos circuitos y mesas electorales hay en cada estrato?
+
+```{r circuitos} 
+
+# Contamos los circuitos y mesas por estrato
+resumen_estratos <- presidenciales %>%
+  group_by(estrato) %>%
+  summarise(
+    circuitos = n_distinct(circuito_id_unico),  # Número de circuitos 
+    mesas_electorales = n_distinct(mesa_id_unico)  # Número de mesas electorales
+  )
+
+
+kable(resumen_estratos, caption = "Resumen de Circuitos y Mesas Electorales por Estrato")
+```
+
+
+### b. Presentar en un tabulado el total de votos a UxP, JxC, LLA y FIT a nivel nacional y la proporción de votos respecto al total de votos positivos 
+
+```{r}
+unique(presidenciales$agrupacion_nombre)
+
+totalVotosPositivos <- presidenciales %>% 
+  filter(votos_tipo == "POSITIVO") %>% 
+  summarise(totalVotosPositivos = sum(votos_cantidad, na.rm = TRUE))  
+ 
+  
+totalVotosPositivos
+
+votos_partido<-presidenciales %>% 
+  filter(votos_tipo=="POSITIVO") %>% 
+  group_by(agrupacion_nombre) %>% 
+  summarise(votos_agrupacion= sum(votos_cantidad),
+            proporcion=votos_agrupacion/totalVotosPositivos)
+
+votos_partido
+kable(votos_partido, caption = "Proporción de votos por partido (valor poblacional)")
+```
+
+### Seleccionar una muestra con este diseño (MAS)
+
+```{r}
+# Calculo el total de circuitos por estrato (UPE - fpc1) 
+# y la cantidad de mesas por circuito (USE - fpc2)
+# Lo agrego al marco muestral total que es el df presidenciales
+
+
+presidenciales <- presidenciales %>%
+  group_by(estrato) %>%
+  mutate(fpc1 = n_distinct(circuito_id_unico)) %>% 
+  ungroup()
+
+presidenciales <- presidenciales %>%
+  group_by(estrato,  circuito_id_unico) %>%
+  mutate(fpc2 = n_distinct(mesa_id_unico)) %>% 
+  ungroup()
+
+```
+
+```{r}
+# Genero n (UPE seleccionadas) y m (USE seleccionadas), con los tamanos de muestra en cada etapa
+n <- 80
+m <- 12
+```
+
+```{r}
+#De las UPE seleccionadas (circuitos) selecciono 12 mesas por cada circuito por MAS
+
+marco_mesas <- merge(base_mesas, muestra_circuitos[, c( "circuito_id_unico","F1")],
+                       by= "circuito_id_unico")
+
+marco_mesas <- merge(marco_mesas, presidenciales[!duplicated(presidenciales$circuito_id_unico), c( "circuito_id_unico","fpc1","fpc2")],
+                       by= "circuito_id_unico")
+
+# Ordeno por estrato
+marco_mesas <- marco_mesas[order(marco_mesas$circuito_id_unico), ]
+
+tabla_estratos2 <- marco_mesas %>%
+  group_by(circuito_id_unico) %>%
+  summarise(nh = m,               # Número de unidades a seleccionar (12 por circuito)
+            fpc2 = n_distinct(mesa_id_unico)) %>%  # Cantidad de mesas por circuito (número de mesas distintas)
+  mutate(nh = ifelse(nh > fpc2, fpc2, nh)) 
+
+tabla_estratos2 <- tabla_estratos2[order(tabla_estratos2$circuito_id_unico), ]
+```
+
+```{r}
+
+# Selecciono muestra mesas
+set.seed(1234)
+smplMesas <- sampling::strata(data=marco_mesas, stratanames = "circuito_id_unico",
+                                size=tabla_estratos2$nh,
+                                method="srswor")
+
+muestra_mesas <- getdata(marco_mesas, smplMesas)        
+muestra_mesas$F2 <- 1/muestra_mesas$Prob
+
+muestra_mesas$pondera <- muestra_mesas$F1 * muestra_mesas$F2    
+
+muestra_mesas$TOTAL_VOTOS_POSITIVOS = muestra_mesas$`FRENTE DE IZQUIERDA Y DE TRABAJADORES - UNIDAD` + muestra_mesas$`HACEMOS POR NUESTRO PAIS` + muestra_mesas$`JUNTOS POR EL CAMBIO` + muestra_mesas$`LA LIBERTAD AVANZA`+muestra_mesas$`UNION POR LA PATRIA`
+
+```
+
+
+### Declarar el diseño de muestreo a survey (declarar ambas etapas de selección) y con survey estimar los totales y proporciones pedidas, junto a sus CV, IC(90%) y deff (en el caso de proporciones no es necesario calcular el deff)
+
+
+```{r}
+# Declaro diseño 
+
+diseno <- svydesign(id=~circuito_id_unico + mesa_id_unico, strata=~estrato, weights = ~pondera, fpc=~fpc1+fpc2, data=muestra_mesas, nest = TRUE)  # Añadir nest=TRUE)
+
+#jxc
+total_jxc <- svytotal(~`JUNTOS POR EL CAMBIO`, diseno, na.rm=TRUE, cv=TRUE, deff=TRUE)
+prop_jxc <- svyratio(numerator = ~`JUNTOS POR EL CAMBIO`, denominator = ~TOTAL_VOTOS_POSITIVOS, diseno, deff=TRUE)
+
+
+#FIT
+total_FIT <- svytotal(~`FRENTE DE IZQUIERDA Y DE TRABAJADORES - UNIDAD`, diseno, na.rm=TRUE, cv=TRUE, deff=TRUE)
+prop_FIT <- svyratio(numerator = ~`FRENTE DE IZQUIERDA Y DE TRABAJADORES - UNIDAD`, denominator = ~TOTAL_VOTOS_POSITIVOS, diseno, deff=TRUE)
+
+#LLA
+total_LLA <- svytotal(~`LA LIBERTAD AVANZA`, diseno, na.rm=TRUE, cv=TRUE, deff=TRUE)
+prop_LLA <- svyratio(numerator = ~`LA LIBERTAD AVANZA`, denominator = ~TOTAL_VOTOS_POSITIVOS, diseno, deff=TRUE)
+
+#UNION POR LA PATRIA
+total_UxP <- svytotal(~`UNION POR LA PATRIA`, diseno, na.rm=TRUE, cv=TRUE, deff=TRUE)
+prop_UxP <- svyratio(numerator = ~`UNION POR LA PATRIA`, denominator = ~TOTAL_VOTOS_POSITIVOS, diseno, deff=TRUE)
+```
+
+### Presentar en dos tablas (una para los totales , otra para las proporciones) los resultados
+
+```{r}
+
+totales_estim_disA <- data.frame(Agrupacion = c("JUNTOS POR EL CAMBIO",
+                                                "FRENTE DE IZQUIERDA Y DE TRABAJADORES - UNIDAD",
+                                                "LA LIBERTAD AVANZA",
+                                                "UNION POR LA PATRIA"),
+                                 Total = c(total_jxc[1],total_FIT[1],total_LLA[1],total_UxP[1]),
+                                 CI_li = c(confint(total_jxc, level = 0.9)[1],
+                                           confint(total_FIT, level = 0.9)[1],
+                                           confint(total_LLA, level = 0.9)[1],
+                                           confint(total_UxP, level = 0.9)[1]),
+                                 CI_ls = c(confint(total_jxc, level = 0.9)[2],
+                                           confint(total_FIT, level = 0.9)[2],
+                                           confint(total_LLA, level = 0.9)[2],
+                                           confint(total_UxP, level = 0.9)[2]),
+                                 CV = c(cv(total_jxc),cv(total_FIT),cv(total_LLA),cv(total_UxP)),
+                                 Deff = c(deff(total_jxc),deff(total_FIT),deff(total_LLA),deff(total_UxP)))
+rownames(totales_estim_disA) = NULL
+
+totales_estim_disA
+
+props_estim_disA <- data.frame(Agrupacion = c("JUNTOS POR EL CAMBIO",
+                                                "FRENTE DE IZQUIERDA Y DE TRABAJADORES - UNIDAD",
+                                                "LA LIBERTAD AVANZA",
+                                                "UNION POR LA PATRIA"),
+                                 prop = c(prop_jxc$ratio,prop_FIT$ratio,prop_LLA$ratio,prop_UxP$ratio),
+                                 CI_li = c(confint(prop_jxc, level = 0.9)[1],
+                                           confint(prop_FIT, level = 0.9)[1],
+                                           confint(prop_LLA, level = 0.9)[1],
+                                           confint(prop_UxP, level = 0.9)[1]),
+                                 CI_ls = c(confint(prop_jxc, level = 0.9)[2],
+                                           confint(prop_FIT, level = 0.9)[2],
+                                           confint(prop_LLA, level = 0.9)[2],
+                                           confint(prop_UxP, level = 0.9)[2]),
+                                 CV = c(cv(prop_jxc),cv(prop_FIT),cv(prop_LLA),cv(prop_UxP)))
+rownames(props_estim_disA) = NULL
+
+props_estim_disA
+
+```
+### Los intervalos de confianza al 90% contienen a los parámetros poblacionales?
+
+``` {r}
+#Chequear si los IC cubren al parametro
+
+totales_chequeo_disA = merge(totales_estim_disA, votos_partido[, c("agrupacion_nombre", "votos_agrupacion")], by.x = "Agrupacion", by.y = "agrupacion_nombre")
+
+totales_chequeo_disA$Cubre_param = totales_chequeo_disA$CI_li <= totales_chequeo_disA$votos_agrupacion & 
+                                            totales_chequeo_disA$CI_ls >= totales_chequeo_disA$votos_agrupacion
+
+totales_chequeo_disA[, c("Agrupacion","Cubre_param")]
+
+
+props_chequeo_disA = merge(props_estim_disA, votos_partido[, c("agrupacion_nombre", "proporcion")], by.x = "Agrupacion", by.y = "agrupacion_nombre")
+
+props_chequeo_disA$Cubre_param = props_chequeo_disA$CI_li <= props_chequeo_disA$proporcion & 
+                                            props_chequeo_disA$CI_ls >= props_chequeo_disA$proporcion
+
+props_chequeo_disA[, c("Agrupacion" ,"Cubre_param")]
+
+
+```
+
+
+
+############################################################################################
+############################################################################################
+Diseño B 
+
+
+``` {r asignación pps}
+
+# Calculamos el total de mesas por estrato
+mesas_por_circuito <- presidenciales %>%
+  group_by(estrato, circuito_id_unico) %>%
+  summarise(total_mesas_circuito = n_distinct(mesa_id_unico))
+
+mesas_por_circuito <- merge(mesas_por_circuito, presidenciales[!duplicated(presidenciales$circuito_id_unico), c( "circuito_id_unico","UPE_asignadas", "distrito_id", "seccion_id", "circuito_id")], by= "circuito_id_unico")
+
+mesas_por_circuito <- merge(mesas_por_circuito, mesas_por_estrato[, c("estrato", "total_mesas")], by = "estrato")
+
+# Genero probabilidad de seleccion
+mesas_por_circuito$pik <- mesas_por_circuito$UPE_asignadas * mesas_por_circuito$total_mesas_circuito / mesas_por_circuito$total_mesas 
+
+max(mesas_por_circuito$pik)
+```
+ 
+### Hay circuitos autorepresentados en algún estrato?
+
+No hay ningún circuito con probabilidad uno en ningún estrato
+
+### Seleccionar una muestra con este diseño
+
+``` {r}
+
+#Ordeno el marco
+mesas_por_circuito <- mesas_por_circuito[order(mesas_por_circuito$estrato, mesas_por_circuito$distrito_id, mesas_por_circuito$seccion_id, mesas_por_circuito$circuito_id),]
+
+set.seed(12345)
+smplCircuitosB <- sampling::strata(data=mesas_por_circuito, stratanames = "estrato",
+                                   size=mesas_por_circuito$UPE_asignadas[!duplicated(mesas_por_circuito$estrato)],
+                                   pik=mesas_por_circuito$pik,
+                                   method="systematic")
+
+muestra_circuitosB <- getdata(mesas_por_circuito, smplCircuitosB)
+muestra_circuitosB$F1 <- 1/muestra_circuitosB$Prob
+
+# Verificar las primeras filas del resultado
+head(muestra_circuitosB)
+# Verificar tamaño de muestra por estrato
+table(muestra_circuitosB$estrato)
+
+#De las UPE seleccionadas (circuitos) selecciono 12 mesas por cada circuito por MAS
+
+marco_mesasB <- merge(base_mesas, muestra_circuitosB[, c( "circuito_id_unico","F1")],
+                       by= "circuito_id_unico")
+
+marco_mesasB <- marco_mesasB[order(marco_mesasB$circuito_id_unico), ]
+
+tabla_estratos_disB <- marco_mesasB %>%
+  group_by(circuito_id_unico) %>%
+  summarise(nh = m,               # Número de unidades a seleccionar (12 por circuito)
+            fpc2 = n_distinct(mesa_id_unico)) %>%  # Cantidad de mesas por circuito (número de mesas distintas)
+  mutate(nh = ifelse(nh > fpc2, fpc2, nh)) 
+
+tabla_estratos_disB <- tabla_estratos_disB[order(tabla_estratos_disB$circuito_id_unico), ]
+
+# Selecciono muestra mesas
+
+set.seed(12345)
+smplMesasB <- sampling::strata(data=marco_mesasB, stratanames = "circuito_id_unico",
+                                size=tabla_estratos_disB$nh,
+                                method="srswor")
+
+muestra_mesasB <- getdata(marco_mesasB, smplMesasB)        
+muestra_mesasB$F2 <- 1/muestra_mesasB$Prob
+
+muestra_mesasB$pondera <- muestra_mesasB$F1 * muestra_mesasB$F2    
+
+muestra_mesasB$TOTAL_VOTOS_POSITIVOS = muestra_mesasB$`FRENTE DE IZQUIERDA Y DE TRABAJADORES - UNIDAD` + muestra_mesasB$`HACEMOS POR NUESTRO PAIS` + muestra_mesasB$`JUNTOS POR EL CAMBIO` + muestra_mesasB$`LA LIBERTAD AVANZA`+muestra_mesasB$`UNION POR LA PATRIA`
+```
+
+### Declarar el diseño de muestreo a survey (ahora solo la primera etapa se declara, sin el fcp)
+
+
+```{r}
+# Declaro diseño 
+
+disenoB <- svydesign(id=~circuito_id_unico , strata=~estrato, weights = ~pondera, data=muestra_mesasB)  # Añadir nest=TRUE)
+
+```
+
+### Con survey estimar los totales y proporciones pedidas, junto a sus CV, IC(90%) y deff
+
+```{r}
+#jxc
+total_jxc_B <- svytotal(~`JUNTOS POR EL CAMBIO`, disenoB, na.rm=TRUE, cv=TRUE, deff=TRUE)
+prop_jxc_B <- svyratio(numerator = ~`JUNTOS POR EL CAMBIO`, denominator = ~TOTAL_VOTOS_POSITIVOS, disenoB, deff=TRUE)
+
+
+#FIT
+total_FIT_B <- svytotal(~`FRENTE DE IZQUIERDA Y DE TRABAJADORES - UNIDAD`, disenoB, na.rm=TRUE, cv=TRUE, deff=TRUE)
+prop_FIT_B <- svyratio(numerator = ~`FRENTE DE IZQUIERDA Y DE TRABAJADORES - UNIDAD`, denominator = ~TOTAL_VOTOS_POSITIVOS, disenoB, deff=TRUE)
+
+#LLA
+total_LLA_B <- svytotal(~`LA LIBERTAD AVANZA`, disenoB, na.rm=TRUE, cv=TRUE, deff=TRUE)
+prop_LLA_B <- svyratio(numerator = ~`LA LIBERTAD AVANZA`, denominator = ~TOTAL_VOTOS_POSITIVOS, disenoB, deff=TRUE)
+
+#UNION POR LA PATRIA
+total_UxP_B <- svytotal(~`UNION POR LA PATRIA`, disenoB, na.rm=TRUE, cv=TRUE, deff=TRUE)
+prop_UxP_B <- svyratio(numerator = ~`UNION POR LA PATRIA`, denominator = ~TOTAL_VOTOS_POSITIVOS, disenoB, deff=TRUE)
+```
+
+### Presentar en dos tablas (una para los totales, otra para las proporciones) los resultados
+
+```{r}
+
+totales_estim_disB <- data.frame(Agrupacion = c("JUNTOS POR EL CAMBIO",
+                                                "FRENTE DE IZQUIERDA Y DE TRABAJADORES - UNIDAD",
+                                                "LA LIBERTAD AVANZA",
+                                                "UNION POR LA PATRIA"),
+                                 Total = c(total_jxc_B[1],total_FIT_B[1],total_LLA_B[1],total_UxP_B[1]),
+                                 CI_li = c(confint(total_jxc_B, level = 0.9)[1],
+                                           confint(total_FIT_B, level = 0.9)[1],
+                                           confint(total_LLA_B, level = 0.9)[1],
+                                           confint(total_UxP_B, level = 0.9)[1]),
+                                 CI_ls = c(confint(total_jxc_B, level = 0.9)[2],
+                                           confint(total_FIT_B, level = 0.9)[2],
+                                           confint(total_LLA_B, level = 0.9)[2],
+                                           confint(total_UxP_B, level = 0.9)[2]),
+                                 CV = c(cv(total_jxc_B),cv(total_FIT_B),cv(total_LLA_B),cv(total_UxP_B)),
+                                 Deff = c(deff(total_jxc_B),deff(total_FIT_B),deff(total_LLA_B),deff(total_UxP_B)))
+rownames(totales_estim_disB) = NULL
+
+totales_estim_disB
+
+props_estim_disB <- data.frame(Agrupacion = c("JUNTOS POR EL CAMBIO",
+                                                "FRENTE DE IZQUIERDA Y DE TRABAJADORES - UNIDAD",
+                                                "LA LIBERTAD AVANZA",
+                                                "UNION POR LA PATRIA"),
+                                 prop = c(prop_jxc_B$ratio,prop_FIT_B$ratio,prop_LLA_B$ratio,prop_UxP_B$ratio),
+                                 CI_li = c(confint(prop_jxc_B, level = 0.9)[1],
+                                           confint(prop_FIT_B, level = 0.9)[1],
+                                           confint(prop_LLA_B, level = 0.9)[1],
+                                           confint(prop_UxP_B, level = 0.9)[1]),
+                                 CI_ls = c(confint(prop_jxc_B, level = 0.9)[2],
+                                           confint(prop_FIT_B, level = 0.9)[2],
+                                           confint(prop_LLA_B, level = 0.9)[2],
+                                           confint(prop_UxP_B, level = 0.9)[2]),
+                                 CV = c(cv(prop_jxc_B),cv(prop_FIT_B),cv(prop_LLA_B),cv(prop_UxP_B)))
+rownames(props_estim_disB) = NULL
+
+props_estim_disB
+
+```
+
+
+### Los intervalos de confianza al 90% contienen a los parámetros poblacionales?
+
+``` {r}
+#Chequear si los IC cubren al parametro
+
+totales_chequeo_disB = merge(totales_estim_disB, votos_partido[, c("agrupacion_nombre", "votos_agrupacion")], by.x = "Agrupacion", by.y = "agrupacion_nombre")
+
+totales_chequeo_disB$Cubre_param = totales_chequeo_disB$CI_li <= totales_chequeo_disB$votos_agrupacion & 
+                                            totales_chequeo_disB$CI_ls >= totales_chequeo_disB$votos_agrupacion
+
+totales_chequeo_disB[, c("Agrupacion","Cubre_param")]
+
+
+props_chequeo_disB = merge(props_estim_disB, votos_partido[, c("agrupacion_nombre", "proporcion")], by.x = "Agrupacion", by.y = "agrupacion_nombre")
+
+props_chequeo_disB$Cubre_param = props_chequeo_disB$CI_li <= props_chequeo_disB$proporcion & 
+                                            props_chequeo_disB$CI_ls >= props_chequeo_disB$proporcion
+
+props_chequeo_disB[, c("Agrupacion" ,"Cubre_param")]
+
+
+```
